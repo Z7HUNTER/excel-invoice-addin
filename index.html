@@ -274,7 +274,7 @@
     }
 
     // ====== PHẦN THAY ĐỔI CHÍNH: DÙNG OFFICE.JS THAY VÌ ONLYOFFICE ======
-            async function insertAllToSheet() {
+                async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
         try {
@@ -311,7 +311,7 @@
                 const numberOfNewRows = extractedResults.length;
                 const existingRows = dataBodyRange.rowCount;
 
-                // Mảng dữ liệu ghi vào Excel (Lấy đúng 12 cột từ A đến L theo ảnh của bạn)
+                // Mảng dữ liệu ghi vào Excel (Đã cập nhật đủ 13 cột từ A đến M)
                 let valuesToWrite = [];
                 for (let i = 0; i < numberOfNewRows; i++) {
                     const d = extractedResults[i];
@@ -329,7 +329,8 @@
                         "",                     // I: LOẠI HÌNH
                         d.soTienTruocVAT ?? "", // J: TRƯỚC VAT
                         d.thueVAT ?? "",        // K: VAT
-                        d.tongSoTien ?? ""      // L: SAU VAT
+                        d.tongSoTien ?? "",     // L: SAU VAT
+                        ""                      // M: GHI CHÚ
                     ];
                     valuesToWrite.push(rowData);
                 }
@@ -347,8 +348,8 @@
 
                 // 3. Trỏ đến vùng các dòng mới chèn
                 const startRowIndex = existingRows; 
-                // 12 cột => index từ 0 đến 11. Nếu bảng có cột M (13 cột), hãy sửa số 11 thành 12.
-                const targetRange = newDataBodyRange.getCell(startRowIndex, 0).getResizedRange(numberOfNewRows - 1, 11);
+                // 13 cột => index từ 0 đến 12.
+                const targetRange = newDataBodyRange.getCell(startRowIndex, 0).getResizedRange(numberOfNewRows - 1, 12);
 
                 // 4. Gán giá trị vào Range
                 targetRange.values = valuesToWrite;
