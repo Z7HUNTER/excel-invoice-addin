@@ -12,19 +12,22 @@
         .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; }
         h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; }
         
-        /* CSS mới cho khu vực chọn file */
+        /* CSS cho khu vực chọn file */
         .file-input-wrapper { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; }
         .file-input-wrapper:hover { background: #e1f0ff; }
         #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 10px; }
         .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-bottom: 15px; font-weight: normal; }
         
-        /* Nút bấm chọn file thật sự */
+        /* Nút bấm chọn file giả (để hiển thị) */
         .btn-select-file {
-            background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block;
+            background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; position: relative; overflow: hidden;
         }
         .btn-select-file:hover { background-color: #0b5ed7; }
-        /* Ẩn input file đi nhưng không dùng display:none để vẫn kích hoạt được */
-        #fileInput { display: none; }
+
+        /* Tuyệt chiêu: Input file trong suốt phủ lên nút bấm */
+        #fileInput {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+        }
 
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
@@ -46,16 +49,16 @@
     <div class="card">
         <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
         
-        <!-- KHU VỰC CHỌN FILE ĐÃ ĐƯỢC SỬA LẠI -->
+        <!-- KHU VỰC CHỌN FILE ĐÃ ĐƯỢC SỬA LẠI BẰNG KỸ THUẬT CLICK-THROUGH -->
         <div class="file-input-wrapper">
             <span id="fileName">Chưa có tệp nào được chọn</span>
             <span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
             
-            <!-- Nút bấm thật để kích hoạt input -->
-            <button class="btn-select-file" onclick="document.getElementById('fileInput').click()">📂 Chọn Tệp Từ Máy Tính</button>
-            
-            <!-- Thẻ input được ẩn bằng display:none nhưng được gọi qua nút bấm -->
-            <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
+            <!-- Nút bấm giả chứa input thật bên trong -->
+            <div class="btn-select-file">
+                📂 Chọn Tệp Từ Máy Tính
+                <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
+            </div>
         </div>
 
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
