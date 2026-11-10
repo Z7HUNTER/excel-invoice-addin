@@ -5,6 +5,10 @@
     <title>Đọc Hóa Đơn AI</title>
     <!-- Office.js bắt buộc -->
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <!-- Thư viện Dropzone để lách WebView2 -->
+    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
+    
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
         body { background-color: #f8f9fa; color: #212529; height: 100vh; display: flex; flex-direction: column; }
@@ -17,16 +21,11 @@
         #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 10px; }
         .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-bottom: 15px; font-weight: normal; }
 
-        /* ĐÂY LÀ THẺ INPUT ĐƯỢC ĐỂ LỘ NGUYÊN BẢN */
-        input[type="file"] {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            background-color: #fff;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        /* Ghi đè CSS của Dropzone để giống nút bấm cũ */
+        .dropzone { border: none !important; background: transparent !important; min-height: 0 !important; padding: 0 !important; }
+        .dz-message { margin: 0 !important; }
+        .dz-button { background-color: #0d6efd !important; color: white !important; border: none !important; padding: 10px 20px !important; border-radius: 6px !important; cursor: pointer !important; font-weight: bold !important; font-size: 14px !important; display: inline-block !important; width: auto !important; }
+        .dz-button:hover { background-color: #0b5ed7 !important; }
 
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
@@ -52,8 +51,12 @@
             <span id="fileName">Chưa có tệp nào được chọn</span>
             <span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
             
-            <!-- THẺ INPUT ĐƯỢC ĐỂ LỘ, KHÔNG BỌC DIV, KHÔNG ẨN -->
-            <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
+            <!-- Dropzone sẽ tự động tạo vùng kéo thả và nút bấm thay thế input file -->
+            <form action="/" class="dropzone" id="myDropzone">
+                <div class="dz-message" data-dz-message>
+                    <button type="button" class="dz-button">📂 Chọn Tệp Từ Máy Tính</button>
+                </div>
+            </form>
         </div>
 
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
@@ -91,6 +94,30 @@
     let selectedFiles = [];
     let extractedResults = [];
 
+    // Cấu hình Dropzone để không upload qua AJAX mà chỉ lấy file
+    Dropzone.autoDiscover = false;
+    const myDropzone = new Dropzone("#myDropzone", {
+        url: "#",
+        autoProcessQueue: false,
+        uploadMultiple: true,
+        parallelUploads: 10,
+        maxFilesize: 10, // MB
+        acceptedFiles: "image/*,application/pdf",
+        addRemoveLinks: false,
+        dictDefaultMessage: "Kéo thả file vào đây hoặc bấm nút",
+        init: function() {
+            this.on("addedfiles", function(files) {
+                selectedFiles = selectedFiles.concat(Array.from(files));
+                updateFileStatusText(`📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`);
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('clearBtn').style.display = 'inline-block';
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerText = `✓ Đã thêm ${files.length} tệp.`;
+                statusDiv.style.color = "#198754";
+            });
+        }
+    });
+
     // Office.js khởi tạo
     Office.onReady(function(info) {
         if (info.host === Office.HostType.Excel) {
@@ -122,16 +149,6 @@
         }
     });
 
-    function handleFileSelect(event) {
-        const files = Array.from(event.target.files);
-        if (files.length === 0) return;
-        selectedFiles = selectedFiles.concat(files);
-        updateFileStatusText(`📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`);
-        document.getElementById('processBtn').disabled = false;
-        document.getElementById('clearBtn').style.display = 'inline-block';
-        event.target.value = ''; // Reset input để có thể chọn lại cùng một file
-    }
-
     function updateFileStatusText(text) {
         document.getElementById('fileName').innerText = text;
     }
@@ -139,6 +156,7 @@
     function clearSelectedFiles(event) {
         if (event) event.stopPropagation();
         selectedFiles = [];
+        myDropzone.removeAllFiles(true); // Xóa file trong Dropzone
         document.getElementById('fileName').innerText = 'Chưa có tệp nào được chọn';
         document.getElementById('processBtn').disabled = true;
         document.getElementById('clearBtn').style.display = 'none';
