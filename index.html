@@ -207,7 +207,7 @@
   "tongSoTien": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 941264 hoặc 941264.5)"
 }`;
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         for (let i = 0; i < selectedFiles.length; i++) {
             const file = selectedFiles[i];
