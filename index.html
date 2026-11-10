@@ -274,64 +274,99 @@
     }
 
     // ====== PHẦN THAY ĐỔI CHÍNH: DÙNG OFFICE.JS THAY VÌ ONLYOFFICE ======
-    async function insertAllToSheet() {
+        async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
         try {
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
                 
-                // Tìm dòng cuối có dữ liệu trong cột A (STT)
-                const usedRange = sheet.getUsedRange();
-                usedRange.load("rowIndex, rowCount");
+                // 1. Lấy bảng dữ liệu (Table) đang có trên sheet. 
+                // Lưu ý: Code này giả định bạn chỉ có 1 bảng trên sheet và bảng đó tên mặc định là "Table1".
+                // Nếu tên bảng của bạn khác, hãy sửa "Table1" thành tên thực tế của bảng.
+                const tables = sheet.tables;
+                tables.load("items/name");
                 await context.sync();
 
-                let startRow = 1; // Mặc định bắt đầu từ dòng 2 (index 1) nếu sheet trống
-                if (usedRange.rowCount > 0) {
-                    startRow = usedRange.rowIndex + usedRange.rowCount;
+                if (tables.items.length === 0) {
+                    throw new Error("Không tìm thấy Table nào trên trang tính. Vui lòng tạo Table trước (Ctrl+T).");
                 }
 
-                // Tìm STT lớn nhất trong cột A
-                let maxStt = 0;
-                if (startRow > 1) {
-                    const colARange = sheet.getRange("A2:A" + startRow);
-                    colARange.load("values");
-                    await context.sync();
-                    colARange.values.forEach(([v]) => {
-                        const n = parseInt(v, 10);
-                        if (!isNaN(n) && n > maxStt) maxStt = n;
-                    });
-                }
+                const table = tables.items[0]; // Lấy bảng đầu tiên
+                table.load("name");
+                await context.sync();
 
-                // Ghi từng dòng hóa đơn
+                // 2. Xác định dòng cuối cùng của bảng hiện tại (không tính dòng Total)
+                // Trong Office.js, dòng dữ liệu của bảng có index từ 0 đến (rowCount - 1)
+                // Giả sử dòng cuối cùng trong bảng là dòng Total, ta sẽ chèn ngay trước nó.
+                table.rows.load("count");
+                await context.sync();
+                
+                let insertIndex = table.rows.count; 
+                let sttCount = 0;
+
+                // 3. Tìm số thứ tự (STT) lớn nhất trong bảng (cột A - index 0)
+                // Đọc dữ liệu cột A của bảng
+                const dataRange = table.getDataBodyRange();
+                dataRange.load("values");
+                await context.sync();
+                
+                dataRange.values.forEach((row) => {
+                    const val = parseInt(row[0], 10); // Cột A là index 0
+                    if (!isNaN(val) && val > sttCount) {
+                        sttCount = val;
+                    }
+                });
+
+                // 4. Tiến hành chèn và điền dữ liệu
                 for (let i = 0; i < extractedResults.length; i++) {
                     const d = extractedResults[i];
-                    const rowNum = startRow + i + 1; // 1-based Excel row
-                    const stt = maxStt + 1 + i;
-
-                    // Chuẩn bị mảng giá trị cho dòng: A đến M (13 cột)
-                    // A=STT, B-D trống, E=Số HĐ, F=Ngày, G=Đơn vị bán, H=MST, I-J trống, K=Trước VAT, L=VAT, M=Sau VAT
-                    const rowValues = [[
-                        stt, "", "", "",
-                        d.soHoaDon || "",
-                        d.ngayXuat || "",
-                        d.donViBan || "",
-                        d.maSoThue || "",
-                        "", "",
-                        d.soTienTruocVAT ?? "",
-                        d.thueVAT ?? "",
-                        d.tongSoTien ?? ""
-                    ]];
-
-                    const targetRange = sheet.getRange(`A${rowNum}:M${rowNum}`);
-                    targetRange.values = rowValues;
-                    targetRange.format.borders.getItem('EdgeTop').style = 'Continuous';
-                    targetRange.format.borders.getItem('EdgeBottom').style = 'Continuous';
-                    targetRange.format.borders.getItem('EdgeLeft').style = 'Continuous';
-                    targetRange.format.borders.getItem('EdgeRight').style = 'Continuous';
-                    targetRange.format.borders.getItem('InsideVertical').style = 'Continuous';
-                    targetRange.format.borders.getItem('InsideHorizontal').style = 'Continuous';
+                    
+                    // Lệnh Add chèn dòng mới vào vị trí chỉ định (đẩy các dòng dưới xuống)
+                    // Truyền null để tạo một dòng trống, sau đó ta ghi đè dữ liệu
+                    table.rows.add(insertIndex + i, null);
                 }
+                
+                await context.sync();
+
+                // 5. Ghi dữ liệu vào các dòng vừa chèn
+                const newRange = table.rows.getItemAt(insertIndex).getRange();
+                const numberOfNewRows = extractedResults.length;
+                
+                // Xây dựng mảng dữ liệu 2 chiều để ghi 1 lần (tăng tốc độ)
+                let valuesToWrite = [];
+                for (let i = 0; i < numberOfNewRows; i++) {
+                    const d = extractedResults[i];
+                    const stt = sttCount + 1 + i;
+
+                    // Xây dựng mảng giá trị dựa theo thứ tự cột trong bảng Excel của bạn:
+                    // Tôi đang giả định thứ tự cột trên ảnh: STT(A), NGÀY(B), SỐ IL(C), CBQL(D), SỐ HÓA ĐƠN(E), NGÀY HÓA ĐƠN(F), ĐƠN VỊ BÁN(G), MST(H)...
+                    // BẠN CẦN KIỂM TRA LẠI THỨ TỰ CỘT VÀ CHỈNH SỬA MẢNG DƯỚI ĐÂY CHO KHỚP VỚI BẢNG THỰC TẾ CỦA BẠN
+                    const rowData = [
+                        stt,                  // Cột A: STT
+                        "",                   // Cột B: NGÀY
+                        "",                   // Cột C: SỐ IL
+                        "",                   // Cột D: CBQL
+                        d.soHoaDon || "",     // Cột E: SỐ HÓA ĐƠN
+                        d.ngayXuat || "",     // Cột F: NGÀY HÓA ĐƠN
+                        d.donViBan || "",     // Cột G: ĐƠN VỊ BÁN
+                        d.maSoThue || "",     // Cột H: MST
+                        "",                   // Cột I: LOẠI HÌNH
+                        "",                   // Cột J: TRƯỚC VAT
+                        d.soTienTruocVAT ?? "", // Cột K (ước tính): TRƯỚC VAT
+                        d.thueVAT ?? "",        // Cột L (ước tính): VAT
+                        d.tongSoTien ?? ""      // Cột M (ước tính): SAU VAT
+                    ];
+                    valuesToWrite.push(rowData);
+                }
+
+                // Ghi toàn bộ dữ liệu mới vào vùng vừa chèn
+                const writeRange = newRange.getResizedRange(numberOfNewRows - 1, valuesToWrite[0].length - 1);
+                writeRange.values = valuesToWrite;
+
+                // Tự động điều chỉnh kích thước cột cho dễ nhìn (tuỳ chọn)
+                table.columns.load("items");
+                await context.sync();
 
                 await context.sync();
             });
