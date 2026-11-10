@@ -75,7 +75,7 @@
         <hr style="margin: 24px 0; border: 0; border-top: 1px solid #dee2e6;">
         
         <h2>Kiểm Tra Dữ Liệu</h2>
-        <button class="btn btn-check-dup" onclick="checkDuplicates()">🔍 Quét Hóa Đơn Trùng Lặp</button>
+        <button class="btn btn-check-dup" onclick="checkDuplicates()">🔍 Đánh lại STT & Quét Trùng Lặp</button>
         <div id="checkStatus" class="status"></div>
     </div>
 
@@ -312,7 +312,7 @@
         document.getElementById('resultCard').style.display = 'block';
     }
 
-    // ====== CHÈN EXCEL (SỬA LỖI NGÀY THÁNG BẰNG DẤU NHÁY ĐƠN) ======
+    // ====== CHÈN EXCEL ======
     async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
         try {
@@ -381,10 +381,10 @@
         }
     }
 
-    // ====== KIỂM TRA TRÙNG LẶP ======
+    // ====== KIỂM TRA TRÙNG LẶP & ĐÁNH LẠI STT ======
     async function checkDuplicates() {
         const checkStatusDiv = document.getElementById('checkStatus');
-        checkStatusDiv.innerText = "⏳ Đang quét dữ liệu tìm hóa đơn trùng...";
+        checkStatusDiv.innerText = "⏳ Đang đánh lại STT và quét dữ liệu...";
         checkStatusDiv.style.color = "#0d6efd";
 
         try {
@@ -407,18 +407,29 @@
                     return;
                 }
 
+                // 1. ĐÁNH LẠI SỐ THỨ TỰ (STT) TỰ ĐỘNG
+                let currentStt = 1;
+                for (let i = 0; i < values.length; i++) {
+                    // Nếu dòng có chứa số hóa đơn (tức là dòng có dữ liệu) thì mới đánh STT
+                    if (values[i][4] !== "" && values[i][4] !== null && values[i][4] !== undefined) {
+                        const sttCell = dataBodyRange.getCell(i, 0); // Cột A (STT) là index 0
+                        sttCell.values = [[currentStt]];
+                        currentStt++;
+                    }
+                }
+                await context.sync(); // Lưu STT mới vào Excel
+
+                // 2. QUÉT TRÙNG LẶP
                 // Xóa toàn bộ màu highlight cũ
                 dataBodyRange.format.fill.clear();
 
                 let keyMap = {};
                 let duplicateKeys = new Set();
 
-                // Quét dữ liệu
                 for (let i = 0; i < values.length; i++) {
                     const row = values[i];
                     if (!row[4]) continue;
 
-                    // Xử lý loại bỏ dấu nháy đơn nếu có để so sánh chính xác
                     let invNo = String(row[4]).trim().toLowerCase();
                     let invDate = String(row[5]).trim();
                     if (invDate.startsWith("'")) invDate = invDate.substring(1); // Bỏ dấu ' nếu có
@@ -435,7 +446,7 @@
                 }
 
                 if (duplicateKeys.size === 0) {
-                    checkStatusDiv.innerText = "✅ Tuyệt vời! Không tìm thấy hóa đơn nào bị trùng lặp.";
+                    checkStatusDiv.innerText = "✅ Đã đánh lại STT. Không tìm thấy hóa đơn nào bị trùng lặp.";
                     checkStatusDiv.style.color = "#198754";
                     return;
                 }
@@ -461,7 +472,7 @@
                     }
                 }
 
-                checkStatusDiv.innerText = `⚠️ Phát hiện ${duplicateKeys.size} cụm hóa đơn bị trùng lặp (tổng cộng ${dupCount} dòng đã được tô màu đỏ).`;
+                checkStatusDiv.innerText = `⚠️ Đã đánh lại STT. Phát hiện ${duplicateKeys.size} cụm hóa đơn bị trùng lặp (${dupCount} dòng đã được tô màu đỏ).`;
                 checkStatusDiv.style.color = "#dc3545";
             });
         } catch (error) {
