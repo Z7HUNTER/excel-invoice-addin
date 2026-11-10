@@ -22,7 +22,7 @@
         .btn-select-file { background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; }
         .btn-select-file:hover { background-color: #0b5ed7; }
 
-        /* Input file ẩn (sẽ chạy tốt trên Excel Online) */
+        /* Input file ẩn */
         #fileInput { display: none; }
 
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
@@ -46,11 +46,13 @@
     <div class="card">
         <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
         
+        <!-- VÙNG KÉO THẢ VÀ CHỌN FILE -->
         <div class="dropzone" id="dropZone">
             <span id="fileName">Chưa có tệp nào được chọn</span>
             <span class="paste-hint">💡 Hoặc kéo thả file vào đây / bấm Ctrl+V để dán ảnh.</span>
             
             <button class="btn-select-file" onclick="document.getElementById('fileInput').click()">📂 Chọn Tệp Từ Máy Tính</button>
+            <!-- Thẻ input ẩn để kích hoạt hộp thoại -->
             <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
         </div>
 
@@ -93,14 +95,16 @@
         }
     });
 
+    // ====== HÀM CHỌN FILE TỪ HỘP THOẠI ======
     function handleFileSelect(event) {
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
         addFiles(files);
         updateStatus(`✓ Đã chọn ${files.length} tệp.`, "#198754");
-        event.target.value = '';
+        event.target.value = ''; // Reset input
     }
 
+    // ====== KÉO THẢ & DÁN ẢNH ======
     function setupDragAndDrop() {
         const dropZone = document.getElementById('dropZone');
 
@@ -151,6 +155,7 @@
         }
     });
 
+    // ====== HÀM DÙNG CHUNG ======
     function addFiles(files) {
         selectedFiles = selectedFiles.concat(files);
         document.getElementById('fileName').innerText = `📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`;
@@ -173,6 +178,7 @@
         updateStatus('Đã xóa danh sách file.', '#6c757d');
     }
 
+    // ====== XỬ LÝ AI ======
     function parsePureNumber(val) {
         if (val === null || val === undefined || val === "") return "";
         var str = String(val).trim().replace(/[^0-9.,\-]/g, '');
@@ -302,7 +308,7 @@
         document.getElementById('resultCard').style.display = 'block';
     }
 
-    // ====== CHÈN EXCEL (ĐÃ SỬA LỖI NGÀY THÁNG) ======
+    // ====== CHÈN EXCEL (XỬ LÝ NGÀY THÁNG CHUẨN XÁC 100%) ======
     async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
@@ -336,20 +342,27 @@
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
 
-                    // Xử lý ngày tháng: Chuyển đổi chuỗi "dd/mm/yyyy" thành đối tượng Date của JS
-                    let dateObj = null;
+                    // Chuyển đổi "dd/mm/yyyy" thành số Serial Date của Excel để tránh lỗi Timezone
+                    let dateValue = "";
                     if (d.ngayXuat) {
                         const parts = d.ngayXuat.split('/');
                         if (parts.length === 3) {
-                            // Tạo đối tượng Date (Lưu ý: Tháng trong JS bắt đầu từ 0)
-                            dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+                            const day = parseInt(parts[0], 10);
+                            const month = parseInt(parts[1], 10);
+                            const year = parseInt(parts[2], 10);
+                            
+                            // Công thức chuyển đổi Ngày sang Số Serial của Excel
+                            const jsDate = new Date(year, month - 1, day);
+                            const time = jsDate.getTime();
+                            const excelEpoch = new Date(1899, 11, 30).getTime();
+                            dateValue = (time - excelEpoch) / (24 * 60 * 60 * 1000);
                         }
                     }
 
                     const rowData = [
                         String(stt), "", "", "",
                         String(d.soHoaDon || ""),
-                        dateObj ? dateObj : String(d.ngayXuat || ""), // Gán đối tượng Date nếu có
+                        dateValue, // Gán số Serial Date
                         String(d.donViBan || ""),
                         String(d.maSoThue || ""),
                         "",
@@ -359,11 +372,11 @@
                         ""
                     ];
 
-                    // Chèn dòng mới
+                    // 1. Chèn dòng mới
                     const newRow = table.rows.add(insertIndex + i, [rowData]);
                     
-                    // Định dạng lại ô Ngày tháng (Cột F tương ứng index 5)
-                    if (dateObj) {
+                    // 2. Ép định dạng hiển thị của ô Ngày xuất (Cột F, index 5) thành dd/mm/yyyy
+                    if (dateValue !== "") {
                         const dateCell = newRow.getRange().getCell(0, 5);
                         dateCell.numberFormat = [["dd/mm/yyyy"]];
                     }
