@@ -6,78 +6,87 @@
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #f8f9fa; color: #212529; height: 100vh; display: flex; flex-direction: column; }
-        .container { padding: 16px; overflow-y: auto; flex: 1; }
-        .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; }
-        h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; }
+        body { background-color: #f4f6f8; color: #333; height: 100vh; display: flex; flex-direction: column; }
+        
+        .container { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; align-items: center; }
+        
+        /* Thiết kế lại thẻ Card đẹp hơn */
+        .card { background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; width: 100%; max-width: 600px; text-align: center; border: 1px solid #e9ecef; }
+        
+        h2 { font-size: 18px; margin-bottom: 20px; color: #1a252f; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         
         /* VÙNG CHỌN FILE */
-        .dropzone { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; transition: all 0.2s; cursor: pointer; }
-        .dropzone:hover { background: #e1f0ff; border-color: #0b5ed7; }
-        .dropzone.dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; transform: scale(1.02); }
+        .dropzone { border: 2px dashed #0d6efd; border-radius: 8px; padding: 30px 20px; text-align: center; background: #f8fbff; color: #0d6efd; font-weight: 600; transition: all 0.3s ease; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .dropzone:hover { background: #e6f2ff; border-color: #0b5ed7; }
+        .dropzone.dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; transform: scale(1.02); box-shadow: 0 0 15px rgba(13, 110, 253, 0.2); }
 
         #fileName { color: #0b5ed7; font-size: 15px; font-weight: 700; display: block; margin-bottom: 10px; }
-        .paste-hint { display: block; font-size: 13px; color: #6c757d; margin-bottom: 10px; font-weight: normal; }
+        .paste-hint { display: block; font-size: 13px; color: #6c757d; margin-bottom: 15px; font-weight: normal; }
         
-        .btn-select-file { background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; }
-        .btn-select-file:hover { background-color: #0b5ed7; }
+        .btn-select-file { background-color: #0d6efd; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; transition: 0.2s; box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3); }
+        .btn-select-file:hover { background-color: #0b5ed7; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(13, 110, 253, 0.4); }
 
-        /* Input file ẩn */
         #fileInput { display: none; }
 
-        .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
-        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
-        .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; }
+        /* Nút bấm chung */
+        .btn { background-color: #0d6efd; color: #fff; border: none; padding: 14px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px; width: 100%; margin-top: 15px; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn:hover:not(:disabled) { background-color: #0b5ed7; transform: translateY(-1px); }
+        .btn:disabled { background-color: #adb5bd; cursor: not-allowed; box-shadow: none; }
         
-        /* Nút kiểm tra trùng mới */
-        .btn-check-dup { background-color: #ffc107; color: #000; font-weight: 700; margin-top: 15px; }
-        .btn-check-dup:hover { background-color: #ffca2c; }
+        .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 12px; display: none; transition: 0.2s; }
+        .btn-clear:hover { background-color: #c82333; }
+        
+        .btn-check-dup { background-color: #ffc107; color: #000; font-weight: 700; margin-top: 20px; box-shadow: 0 2px 4px rgba(255, 193, 7, 0.4); }
+        .btn-check-dup:hover { background-color: #ffca2c; transform: translateY(-1px); }
 
-        .status { margin-top: 10px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; }
+        /* Trạng thái */
+        .status { margin-top: 15px; font-size: 14px; font-weight: 600; color: #dc3545; word-break: break-word; text-align: center; }
         
-        .preview-table-container { overflow-x: auto; border-radius: 6px; border: 1px solid #b0b8c1; margin-top: 12px; }
+        /* Bảng Preview */
+        .preview-table-container { overflow-x: auto; border-radius: 8px; border: 1px solid #dee2e6; margin-top: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; background-color: #fff; color: #111; }
-        .preview-table th, .preview-table td { border: 1px solid #cbd5e1; padding: 10px 8px; text-align: left; vertical-align: middle; }
-        .preview-table th { background-color: #343a40; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; }
-        .preview-table td { color: #000; font-weight: 500; background-color: #fff; }
-        .preview-table tbody tr:nth-child(even) td { background-color: #f8fafc; }
-        .preview-table tbody tr:hover td { background-color: #e2e8f0; }
+        .preview-table th, .preview-table td { border-bottom: 1px solid #dee2e6; padding: 12px 10px; text-align: center; vertical-align: middle; }
+        .preview-table th { background-color: #343a40; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .preview-table td { color: #333; font-weight: 500; }
+        .preview-table tbody tr:nth-child(even) td { background-color: #f8f9fa; }
+        .preview-table tbody tr:hover td { background-color: #e9ecef; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- CARD 1: TẢI FILE VÀ KIỂM TRA -->
     <div class="card">
-        <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
+        <h2>Tải Lên Hóa Đơn</h2>
         
-        <!-- VÙNG KÉO THẢ VÀ CHỌN FILE -->
         <div class="dropzone" id="dropZone">
             <span id="fileName">Chưa có tệp nào được chọn</span>
-            <span class="paste-hint">💡 Hoặc kéo thả file vào đây / bấm Ctrl+V để dán ảnh.</span>
+            <span class="paste-hint">💡 Kéo thả file vào đây hoặc bấm Ctrl+V để dán ảnh.</span>
             
             <button class="btn-select-file" onclick="document.getElementById('fileInput').click()">📂 Chọn Tệp Từ Máy Tính</button>
             <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
         </div>
 
-        <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
+        <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file</button>
         <button id="processBtn" class="btn" disabled onclick="processAllInvoices()">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
         
         <div id="status" class="status"></div>
 
-        <!-- NÚT KIỂM TRA TRÙNG LẶP -->
-        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #dee2e6;">
+        <hr style="margin: 24px 0; border: 0; border-top: 1px solid #dee2e6;">
+        
         <h2>Kiểm Tra Dữ Liệu</h2>
-        <button class="btn btn-check-dup" onclick="checkDuplicates()">🔍 Kiểm Tra Hóa Đơn Trùng Lặp</button>
-        <div id="checkStatus" class="status" style="color: #0d6efd;"></div>
+        <button class="btn btn-check-dup" onclick="checkDuplicates()">🔍 Quét Hóa Đơn Trùng Lặp</button>
+        <div id="checkStatus" class="status"></div>
     </div>
 
+    <!-- CARD 2: KẾT QUẢ PREVIEW -->
     <div class="card" id="resultCard" style="display: none;">
-        <h2>Danh Sách Hóa Đơn Đã Trích Xuất</h2>
+        <h2>Kết Quả Trích Xuất</h2>
         <div class="preview-table-container">
             <table class="preview-table">
                 <thead>
                     <tr>
-                        <th style="width: 50px; text-align: center;">STT</th>
+                        <th style="width: 50px;">STT</th>
                         <th>Số HĐ</th>
                         <th>Ngày HĐ</th>
                         <th>Đơn vị bán</th>
@@ -90,7 +99,7 @@
                 <tbody id="previewBody"></tbody>
             </table>
         </div>
-        <button class="btn" style="background-color: #198754;" onclick="insertAllToSheet()">Chèn Tất Cả Vào Bảng Tính</button>
+        <button class="btn" style="background-color: #198754; margin-top: 20px;" onclick="insertAllToSheet()">Chèn Tất Cả Vào Bảng Tính</button>
     </div>
 </div>
 
@@ -290,7 +299,7 @@
         const tbody = document.getElementById('previewBody');
         tbody.innerHTML = list.map((data, index) => `
             <tr>
-                <td style="text-align: center; font-weight: bold;">${index + 1}</td>
+                <td style="font-weight: bold;">${index + 1}</td>
                 <td>${data.soHoaDon || ''}</td>
                 <td>${data.ngayXuat || ''}</td>
                 <td>${data.donViBan || ''}</td>
@@ -303,7 +312,7 @@
         document.getElementById('resultCard').style.display = 'block';
     }
 
-    // ====== CHÈN EXCEL ======
+    // ====== CHÈN EXCEL (SỬA LỖI NGÀY THÁNG BẰNG DẤU NHÁY ĐƠN) ======
     async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
         try {
@@ -336,14 +345,17 @@
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
 
-                    let dateStr = String(d.ngayXuat || "").trim();
-                    if (dateStr) {
-                        let parts = dateStr.split('/');
+                    // Thêm dấu nháy đơn (') phía trước để ép Excel giữ nguyên định dạng Text
+                    let dateStr = "";
+                    if (d.ngayXuat) {
+                        let rawDate = String(d.ngayXuat).trim();
+                        let parts = rawDate.split('/');
                         if (parts.length === 3) {
                             parts[0] = parts[0].padStart(2, '0');
                             parts[1] = parts[1].padStart(2, '0');
-                            dateStr = parts.join('/');
+                            rawDate = parts.join('/');
                         }
+                        dateStr = `'${rawDate}`; 
                     }
 
                     const rowData = [
@@ -359,12 +371,7 @@
                         ""
                     ];
 
-                    const newRow = table.rows.add(insertIndex + i, [rowData]);
-                    
-                    if (dateStr !== "") {
-                        const dateCell = newRow.getRange().getCell(0, 5);
-                        dateCell.numberFormat = [["@"]];
-                    }
+                    table.rows.add(insertIndex + i, [rowData]);
                     await context.sync(); 
                 }
             });
@@ -374,7 +381,7 @@
         }
     }
 
-    // ====== KIỂM TRA TRÙNG LẶP (MỚI) ======
+    // ====== KIỂM TRA TRÙNG LẶP ======
     async function checkDuplicates() {
         const checkStatusDiv = document.getElementById('checkStatus');
         checkStatusDiv.innerText = "⏳ Đang quét dữ liệu tìm hóa đơn trùng...";
@@ -400,27 +407,27 @@
                     return;
                 }
 
-                // Xóa toàn bộ màu highlight cũ trước khi kiểm tra
+                // Xóa toàn bộ màu highlight cũ
                 dataBodyRange.format.fill.clear();
 
-                // Tạo mảng chứa khóa trùng lặp
                 let keyMap = {};
                 let duplicateKeys = new Set();
 
-                // Quét dữ liệu (Cột E là Số HĐ index 4, Cột F là Ngày HĐ index 5, Cột H là MST index 7)
+                // Quét dữ liệu
                 for (let i = 0; i < values.length; i++) {
                     const row = values[i];
-                    // Bỏ qua các dòng rỗng (không có số hóa đơn)
                     if (!row[4]) continue;
 
-                    const invNo = String(row[4]).trim().toLowerCase();
-                    const invDate = String(row[5]).trim(); // Định dạng dd/mm/yyyy
+                    // Xử lý loại bỏ dấu nháy đơn nếu có để so sánh chính xác
+                    let invNo = String(row[4]).trim().toLowerCase();
+                    let invDate = String(row[5]).trim();
+                    if (invDate.startsWith("'")) invDate = invDate.substring(1); // Bỏ dấu ' nếu có
+                    
                     const taxId = String(row[7]).trim().toLowerCase();
 
                     const key = `${invNo}|${invDate}|${taxId}`;
 
                     if (keyMap[key] !== undefined) {
-                        // Nếu khóa đã tồn tại => Phát hiện trùng
                         duplicateKeys.add(key);
                     } else {
                         keyMap[key] = i;
@@ -433,16 +440,17 @@
                     return;
                 }
 
-                // Tiến hành tô màu các dòng bị trùng
-                const highlightColor = "#ffcccc"; // Màu đỏ nhạt
+                // Tô màu các dòng bị trùng
+                const highlightColor = "#ffcccc";
                 let dupCount = 0;
 
                 for (let i = 0; i < values.length; i++) {
                     const row = values[i];
                     if (!row[4]) continue;
 
-                    const invNo = String(row[4]).trim().toLowerCase();
-                    const invDate = String(row[5]).trim();
+                    let invNo = String(row[4]).trim().toLowerCase();
+                    let invDate = String(row[5]).trim();
+                    if (invDate.startsWith("'")) invDate = invDate.substring(1);
                     const taxId = String(row[7]).trim().toLowerCase();
                     const key = `${invNo}|${invDate}|${taxId}`;
 
