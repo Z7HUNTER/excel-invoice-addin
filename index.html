@@ -3,27 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <title>Đọc Hóa Đơn AI</title>
-    <!-- Office.js bắt buộc -->
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f8f9fa; color: #212529; height: 100vh; display: flex; flex-direction: column; }
         .container { padding: 16px; overflow-y: auto; flex: 1; }
         .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; }
         h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; }
         
-        /* CSS cho khu vực chọn file */
-        .file-input-wrapper { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; }
-        #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 10px; }
-        .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-bottom: 15px; font-weight: normal; }
+        /* Tabs điều hướng */
+        .tabs { display: flex; border-bottom: 2px solid #dee2e6; margin-bottom: 15px; }
+        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-weight: 600; color: #6c757d; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+        .tab.active { color: #0d6efd; border-bottom: 3px solid #0d6efd; }
+        .tab:hover { color: #0b5ed7; }
 
-        .btn-select-file {
-            background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block; pointer-events: none;
-        }
+        /* Nội dung từng tab */
+        .tab-content { display: none; padding: 10px 0; }
+        .tab-content.active { display: block; }
+
+        /* Dropzone */
+        .dropzone { border: 2px dashed #0d6efd; border-radius: 6px; padding: 30px 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .dropzone.dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; }
+
+        #fileName { color: #0b5ed7; font-size: 15px; font-weight: 700; display: block; margin-bottom: 10px; }
+        .paste-hint { display: block; font-size: 13px; color: #6c757d; margin-bottom: 5px; font-weight: normal; }
 
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
         .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; }
+        
         .status { margin-top: 10px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; }
         
         .preview-table-container { overflow-x: auto; border-radius: 6px; border: 1px solid #b0b8c1; margin-top: 12px; }
@@ -33,53 +41,39 @@
         .preview-table td { color: #000; font-weight: 500; background-color: #fff; }
         .preview-table tbody tr:nth-child(even) td { background-color: #f8fafc; }
         .preview-table tbody tr:hover td { background-color: #e2e8f0; }
-        
-        /* Hiệu ứng khi kéo thả file */
-        .dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; }
-        
-        /* Wrapper chứa nút và input file */
-        .upload-btn-wrapper {
-            position: relative;
-            display: inline-block;
-            overflow: hidden;
-            margin-top: 5px;
-            cursor: pointer;
-        }
-        
-        /* Input file tàng hình đè lên nút */
-        .upload-btn-wrapper input[type=file] {
-            font-size: 100px;
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-            z-index: 10;
-        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="card">
-        <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
+        <h2>Nguồn Tải Hóa Đơn</h2>
         
-        <!-- Vùng kéo thả và nút chọn file -->
-        <div class="file-input-wrapper" id="dropZone">
-            <span id="fileName">Chưa có tệp nào được chọn</span>
-            <span class="paste-hint">💡 Hoặc kéo thả tệp từ máy tính vào khung này. Có thể bấm Ctrl + V để dán ảnh.</span>
-            
-            <!-- Bọc input file và button vào cùng 1 div. Input đè lên button. -->
-            <div class="upload-btn-wrapper">
-                <button class="btn-select-file">📂 Chọn Tệp Từ Máy Tính</button>
-                <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
+        <!-- Thanh chuyển đổi Tab (Cung cấp nhiều cách chọn file) -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab(event, 'tab-dragdrop')">Kéo Thả</div>
+            <div class="tab" onclick="switchTab(event, 'tab-url')">Từ Link Mạng</div>
+        </div>
+
+        <!-- TAB 1: KÉO THẢ FILE (Ổn định nhất) -->
+        <div id="tab-dragdrop" class="tab-content active">
+            <div class="dropzone" id="dropZone">
+                <span id="fileName">Chưa có tệp nào được chọn</span>
+                <span class="paste-hint">👇 <b>HƯỚNG DẪN:</b></span>
+                <span class="paste-hint">1. Mở thư mục trên máy tính, <b>Kéo thả</b> file PDF/Ảnh vào đây.</span>
+                <span class="paste-hint">2. Hoặc bấm <b>Ctrl + V</b> để dán ảnh chụp màn hình.</span>
             </div>
         </div>
 
+        <!-- TAB 2: TẢI TỪ URL (Dành cho hóa đơn điện tử online) -->
+        <div id="tab-url" class="tab-content">
+            <p style="font-size: 13px; color: #6c757d; margin-bottom: 10px;">Dán đường link (URL) của file ảnh hoặc PDF hóa đơn (ví dụ: link trên Google Drive, website...).</p>
+            <input type="text" id="urlInput" placeholder="https://..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;">
+            <button class="btn" onclick="addFileFromUrl()" style="margin-top: 0;">Tải Từ Link</button>
+        </div>
+
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
-        <button id="processBtn" class="btn" disabled onclick="processAllInvoices()">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
+        <button id="processBtn" class="btn" disabled onclick="processAllInvoices()" style="margin-top: 20px;">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
         <div id="status" class="status"></div>
     </div>
 
@@ -109,38 +103,29 @@
 <script>
     // ====== CẤU HÌNH ======
     const GEMINI_MODEL = "gemini-3.8-flash"; 
-
     let selectedFiles = [];
     let extractedResults = [];
 
-    // Office.js khởi tạo
     Office.onReady(function(info) {
         if (info.host === Office.HostType.Excel) {
             console.log("Excel add-in đã sẵn sàng");
-            setupDragAndDrop(); 
+            setupDragAndDrop();
         }
     });
 
-    // ====== HÀM XỬ LÝ KHI NGƯỜI DÙNG CHỌN FILE TỪ MÁY TÍNH ======
-    function handleFileSelect(event) {
-        const files = Array.from(event.target.files);
-        const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+    // Hàm chuyển đổi giữa các Tab
+    function switchTab(evt, tabId) {
+        let i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) { tabcontent[i].classList.remove("active"); }
+        tablinks = document.getElementsByClassName("tab");
+        for (i = 0; i < tablinks.length; i++) { tablinks[i].classList.remove("active"); }
         
-        if (validFiles.length > 0) {
-            selectedFiles = selectedFiles.concat(validFiles);
-            updateFileStatusText(`📁 Đã nhận tổng cộng ${selectedFiles.length} tệp hóa đơn`);
-            document.getElementById('processBtn').disabled = false;
-            document.getElementById('clearBtn').style.display = 'inline-block';
-            
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerText = `✓ Đã thêm ${validFiles.length} tệp từ máy tính.`;
-            statusDiv.style.color = "#198754";
-        }
-        
-        event.target.value = '';
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
     }
 
-    // ====== TÍNH NĂNG KÉO THẢ FILE VÀO KHUNG (DRAG & DROP) ======
+    // ====== 1. KÉO THẢ FILE & DÁN ẢNH ======
     function setupDragAndDrop() {
         const dropZone = document.getElementById('dropZone');
 
@@ -162,21 +147,19 @@
             dropZone.classList.remove('dragover');
             
             const files = Array.from(e.dataTransfer.files);
-            const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+            const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
             
             if (validFiles.length > 0) {
-                selectedFiles = selectedFiles.concat(validFiles);
-                updateFileStatusText(`📁 Đã nhận tổng cộng ${selectedFiles.length} tệp hóa đơn`);
-                document.getElementById('processBtn').disabled = false;
-                document.getElementById('clearBtn').style.display = 'inline-block';
+                addFilesToSelection(validFiles);
                 const statusDiv = document.getElementById('status');
-                statusDiv.innerText = `✓ Đã thêm ${validFiles.length} tệp qua kéo thả.`;
+                statusDiv.innerText = `✓ Đã nhận ${validFiles.length} tệp qua kéo thả.`;
                 statusDiv.style.color = "#198754";
+            } else {
+                alert("Vui lòng chỉ kéo thả file Ảnh hoặc PDF!");
             }
         });
     }
 
-    // ====== CÁC HÀM XỬ LÝ FILE ======
     document.addEventListener('paste', function (event) {
         const items = (event.clipboardData || event.originalEvent.clipboardData).items;
         let newPastedFiles = [];
@@ -190,18 +173,49 @@
             }
         }
         if (newPastedFiles.length > 0) {
-            selectedFiles = selectedFiles.concat(newPastedFiles);
-            updateFileStatusText(`📋 Đã nhận tổng cộng ${selectedFiles.length} ảnh/tệp hóa đơn`);
-            document.getElementById('processBtn').disabled = false;
-            document.getElementById('clearBtn').style.display = 'inline-block';
+            addFilesToSelection(newPastedFiles);
             const statusDiv = document.getElementById('status');
-            statusDiv.innerText = `✓ Đã dán thêm ${newPastedFiles.length} ảnh (Tổng: ${selectedFiles.length} tệp).`;
+            statusDiv.innerText = `✓ Đã dán thêm ${newPastedFiles.length} ảnh từ Clipboard.`;
             statusDiv.style.color = "#198754";
         }
     });
 
-    function updateFileStatusText(text) {
-        document.getElementById('fileName').innerText = text;
+    // ====== 2. TẢI TỪ URL ======
+    async function addFileFromUrl() {
+        const url = document.getElementById('urlInput').value.trim();
+        if (!url) { alert("Vui lòng nhập đường link!"); return; }
+        
+        try {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "⏳ Đang tải file từ link...";
+            statusDiv.style.color = "#0d6efd";
+
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Không thể tải file từ link này (Có thể do chặn CORS).");
+            
+            const blob = await response.blob();
+            let fileName = url.split('/').pop().split('?')[0] || `file_tu_url_${Date.now()}`;
+            if (!fileName.includes('.')) fileName += '.pdf';
+
+            const file = new File([blob], fileName, { type: blob.type });
+            addFilesToSelection([file]);
+            
+            statusDiv.innerText = `✓ Đã tải xong file từ URL.`;
+            statusDiv.style.color = "#198754";
+            document.getElementById('urlInput').value = '';
+        } catch (error) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "Lỗi tải file: " + error.message;
+            statusDiv.style.color = "#dc3545";
+        }
+    }
+
+    // Hàm dùng chung để thêm file vào danh sách
+    function addFilesToSelection(files) {
+        selectedFiles = selectedFiles.concat(files);
+        document.getElementById('fileName').innerText = `📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`;
+        document.getElementById('processBtn').disabled = false;
+        document.getElementById('clearBtn').style.display = 'inline-block';
     }
 
     function clearSelectedFiles(event) {
@@ -215,6 +229,7 @@
         statusDiv.style.color = '#6c757d';
     }
 
+    // ====== CÁC HÀM XỬ LÝ AI & EXCEL (GIỮ NGUYÊN) ======
     function parsePureNumber(val) {
         if (val === null || val === undefined || val === "") return "";
         var str = String(val).trim().replace(/[^0-9.,\-]/g, '');
@@ -364,7 +379,6 @@
         try {
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
-                
                 const tables = sheet.tables;
                 tables.load("items/name");
                 await context.sync();
@@ -391,7 +405,6 @@
                 table.load("rows/count");
                 await context.sync();
                 let insertIndex = table.rows.count - 1; 
-                
                 if (insertIndex < 1) insertIndex = 1;
 
                 for (let i = 0; i < extractedResults.length; i++) {
