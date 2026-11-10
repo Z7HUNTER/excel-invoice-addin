@@ -46,13 +46,11 @@
     <div class="card">
         <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
         
-        <!-- VÙNG KÉO THẢ VÀ CHỌN FILE -->
         <div class="dropzone" id="dropZone">
             <span id="fileName">Chưa có tệp nào được chọn</span>
             <span class="paste-hint">💡 Hoặc kéo thả file vào đây / bấm Ctrl+V để dán ảnh.</span>
             
             <button class="btn-select-file" onclick="document.getElementById('fileInput').click()">📂 Chọn Tệp Từ Máy Tính</button>
-            <!-- Thẻ input ẩn để kích hoạt hộp thoại -->
             <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
         </div>
 
@@ -95,16 +93,14 @@
         }
     });
 
-    // ====== HÀM CHỌN FILE TỪ HỘP THOẠI (CHẠY TỐT TRÊN EXCEL ONLINE) ======
     function handleFileSelect(event) {
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
         addFiles(files);
         updateStatus(`✓ Đã chọn ${files.length} tệp.`, "#198754");
-        event.target.value = ''; // Reset input
+        event.target.value = '';
     }
 
-    // ====== KÉO THẢ & DÁN ẢNH ======
     function setupDragAndDrop() {
         const dropZone = document.getElementById('dropZone');
 
@@ -155,7 +151,6 @@
         }
     });
 
-    // ====== HÀM DÙNG CHUNG ======
     function addFiles(files) {
         selectedFiles = selectedFiles.concat(files);
         document.getElementById('fileName').innerText = `📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`;
@@ -178,7 +173,6 @@
         updateStatus('Đã xóa danh sách file.', '#6c757d');
     }
 
-    // ====== XỬ LÝ AI ======
     function parsePureNumber(val) {
         if (val === null || val === undefined || val === "") return "";
         var str = String(val).trim().replace(/[^0-9.,\-]/g, '');
@@ -236,7 +230,7 @@
         const promptText = `Trích xuất thông tin hóa đơn này và trả về JSON duy nhất:
 {
   "soHoaDon": "string",
-  "ngayXuat": "string (dd/mm/yyyy)",
+  "ngayXuat": "string (định dạng dd/mm/yyyy)",
   "donViBan": "string",
   "maSoThue": "string",
   "soTienTruocVAT": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 867300)",
@@ -308,7 +302,7 @@
         document.getElementById('resultCard').style.display = 'block';
     }
 
-    // ====== CHÈN EXCEL ======
+    // ====== CHÈN EXCEL (ĐÃ SỬA LỖI NGÀY THÁNG) ======
     async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
@@ -342,10 +336,20 @@
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
 
+                    // Xử lý ngày tháng: Chuyển đổi chuỗi "dd/mm/yyyy" thành đối tượng Date của JS
+                    let dateObj = null;
+                    if (d.ngayXuat) {
+                        const parts = d.ngayXuat.split('/');
+                        if (parts.length === 3) {
+                            // Tạo đối tượng Date (Lưu ý: Tháng trong JS bắt đầu từ 0)
+                            dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+                        }
+                    }
+
                     const rowData = [
                         String(stt), "", "", "",
                         String(d.soHoaDon || ""),
-                        String(d.ngayXuat || ""),
+                        dateObj ? dateObj : String(d.ngayXuat || ""), // Gán đối tượng Date nếu có
                         String(d.donViBan || ""),
                         String(d.maSoThue || ""),
                         "",
@@ -355,7 +359,15 @@
                         ""
                     ];
 
-                    table.rows.add(insertIndex + i, [rowData]);
+                    // Chèn dòng mới
+                    const newRow = table.rows.add(insertIndex + i, [rowData]);
+                    
+                    // Định dạng lại ô Ngày tháng (Cột F tương ứng index 5)
+                    if (dateObj) {
+                        const dateCell = newRow.getRange().getCell(0, 5);
+                        dateCell.numberFormat = [["dd/mm/yyyy"]];
+                    }
+
                     await context.sync(); 
                 }
             });
