@@ -69,8 +69,6 @@
 
 <script>
     // ====== CẤU HÌNH ======
-    // THAY API KEY MỚI CỦA BẠN VÀO ĐÂY (đã revoke key cũ)
-    const GEMINI_API_KEY = "AQ.Ab8RN6K1gjURk9rMsF1cReDSnckdpov8P5Me2tyPc6K7obQwUg";
     // Tên model: kiểm tra lại trong Google AI Studio
     const GEMINI_MODEL = "gemini-3.8-flash"; 
 
@@ -207,7 +205,7 @@
   "tongSoTien": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 941264 hoặc 941264.5)"
 }`;
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const apiUrl = `https://gemini-invoice-proxy.trieudong-5277.workers.dev/`;
 
         for (let i = 0; i < selectedFiles.length; i++) {
             const file = selectedFiles[i];
