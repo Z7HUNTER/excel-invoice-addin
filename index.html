@@ -274,14 +274,14 @@
     }
 
     // ====== PHẦN THAY ĐỔI CHÍNH: DÙNG OFFICE.JS THAY VÌ ONLYOFFICE ======
-                async function insertAllToSheet() {
+    async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
         try {
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
                 
-                // Lấy bảng đầu tiên trên Sheet
+                // 1. Lấy Table trên Sheet
                 const tables = sheet.tables;
                 tables.load("items/name");
                 await context.sync();
@@ -291,15 +291,13 @@
                 }
 
                 const table = tables.items[0];
-                
-                // Lấy vùng dữ liệu chính của bảng (không bao gồm Header và Total)
                 const dataBodyRange = table.getDataBodyRange();
-                dataBodyRange.load("rowCount, columnCount, values");
+                dataBodyRange.load("rowCount, values");
                 await context.sync();
 
-                // Đếm số thứ tự (STT) lớn nhất hiện tại trong cột A
+                // 2. Tìm STT lớn nhất (nếu có dữ liệu cũ)
                 let maxStt = 0;
-                if (dataBodyRange.rowCount > 0) {
+                if (dataBodyRange.rowCount > 0 && dataBodyRange.values) {
                     dataBodyRange.values.forEach(row => {
                         const val = parseInt(row[0], 10);
                         if (!isNaN(val) && val > maxStt) {
@@ -309,9 +307,8 @@
                 }
 
                 const numberOfNewRows = extractedResults.length;
-                const existingRows = dataBodyRange.rowCount;
 
-                // Mảng dữ liệu ghi vào Excel (Đã cập nhật đủ 13 cột từ A đến M)
+                // 3. Chuẩn bị mảng dữ liệu 13 cột
                 let valuesToWrite = [];
                 for (let i = 0; i < numberOfNewRows; i++) {
                     const d = extractedResults[i];
@@ -335,23 +332,23 @@
                     valuesToWrite.push(rowData);
                 }
 
-                // 1. Thêm số lượng dòng trống vào bảng (tự động chèn trước dòng Total)
+                // 4. Thêm dòng vào Table (Nó sẽ tự chèn phía trên dòng Total)
                 if (numberOfNewRows > 0) {
                     table.rows.add(null, numberOfNewRows);
-                    await context.sync();
+                    await context.sync(); // Bắt buộc sync để Excel kịp render dòng mới
                 }
 
-                // 2. Lấy lại vùng dữ liệu mới sau khi đã chèn dòng
-                const newDataBodyRange = table.getDataBodyRange();
-                newDataBodyRange.load("rowCount, columnCount");
+                // 5. Lấy lại vùng Table sau khi đã thêm dòng
+                table.load("rows/count");
                 await context.sync();
 
-                // 3. Trỏ đến vùng các dòng mới chèn
-                const startRowIndex = existingRows; 
-                // 13 cột => index từ 0 đến 12.
-                const targetRange = newDataBodyRange.getCell(startRowIndex, 0).getResizedRange(numberOfNewRows - 1, 12);
+                // 6. Tính toán vị trí ghi dữ liệu: Các dòng mới nằm ngay TRƯỚC dòng Total (dòng cuối cùng)
+                // Nếu Table có 2 dòng (1 header, 1 total) và thêm 1 dòng mới -> Mảng rows.count = 3. 
+                // Dòng mới sẽ nằm ở index 1 (từ 0 đến count-1, dòng total luôn là count-1)
+                const newDataStartRowIndex = table.rows.count - 1 - numberOfNewRows;
 
-                // 4. Gán giá trị vào Range
+                // 7. Lấy vùng Range của các dòng mới và ghi dữ liệu
+                const targetRange = table.getRange().getCell(newDataStartRowIndex + 1, 0).getResizedRange(numberOfNewRows - 1, 12);
                 targetRange.values = valuesToWrite;
                 
                 await context.sync();
