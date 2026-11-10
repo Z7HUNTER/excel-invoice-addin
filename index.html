@@ -274,100 +274,85 @@
     }
 
     // ====== PHẦN THAY ĐỔI CHÍNH: DÙNG OFFICE.JS THAY VÌ ONLYOFFICE ======
-        async function insertAllToSheet() {
+            async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
         try {
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
                 
-                // 1. Lấy bảng dữ liệu (Table) đang có trên sheet. 
-                // Lưu ý: Code này giả định bạn chỉ có 1 bảng trên sheet và bảng đó tên mặc định là "Table1".
-                // Nếu tên bảng của bạn khác, hãy sửa "Table1" thành tên thực tế của bảng.
+                // Lấy bảng đầu tiên trên Sheet
                 const tables = sheet.tables;
                 tables.load("items/name");
                 await context.sync();
 
                 if (tables.items.length === 0) {
-                    throw new Error("Không tìm thấy Table nào trên trang tính. Vui lòng tạo Table trước (Ctrl+T).");
+                    throw new Error("Không tìm thấy Table. Vui lòng bôi đen vùng dữ liệu và nhấn Ctrl+T để tạo Table trước.");
                 }
 
-                const table = tables.items[0]; // Lấy bảng đầu tiên
-                table.load("name");
-                await context.sync();
-
-                // 2. Xác định dòng cuối cùng của bảng hiện tại (không tính dòng Total)
-                // Trong Office.js, dòng dữ liệu của bảng có index từ 0 đến (rowCount - 1)
-                // Giả sử dòng cuối cùng trong bảng là dòng Total, ta sẽ chèn ngay trước nó.
-                table.rows.load("count");
-                await context.sync();
+                const table = tables.items[0];
                 
-                let insertIndex = table.rows.count; 
-                let sttCount = 0;
-
-                // 3. Tìm số thứ tự (STT) lớn nhất trong bảng (cột A - index 0)
-                // Đọc dữ liệu cột A của bảng
-                const dataRange = table.getDataBodyRange();
-                dataRange.load("values");
+                // Lấy vùng dữ liệu chính của bảng (không bao gồm Header và Total)
+                const dataBodyRange = table.getDataBodyRange();
+                dataBodyRange.load("rowCount, columnCount, values");
                 await context.sync();
-                
-                dataRange.values.forEach((row) => {
-                    const val = parseInt(row[0], 10); // Cột A là index 0
-                    if (!isNaN(val) && val > sttCount) {
-                        sttCount = val;
-                    }
-                });
 
-                // 4. Tiến hành chèn và điền dữ liệu
-                for (let i = 0; i < extractedResults.length; i++) {
-                    const d = extractedResults[i];
-                    
-                    // Lệnh Add chèn dòng mới vào vị trí chỉ định (đẩy các dòng dưới xuống)
-                    // Truyền null để tạo một dòng trống, sau đó ta ghi đè dữ liệu
-                    table.rows.add(insertIndex + i, null);
+                // Đếm số thứ tự (STT) lớn nhất hiện tại trong cột A
+                let maxStt = 0;
+                if (dataBodyRange.rowCount > 0) {
+                    dataBodyRange.values.forEach(row => {
+                        const val = parseInt(row[0], 10);
+                        if (!isNaN(val) && val > maxStt) {
+                            maxStt = val;
+                        }
+                    });
                 }
-                
-                await context.sync();
 
-                // 5. Ghi dữ liệu vào các dòng vừa chèn
-                const newRange = table.rows.getItemAt(insertIndex).getRange();
                 const numberOfNewRows = extractedResults.length;
-                
-                // Xây dựng mảng dữ liệu 2 chiều để ghi 1 lần (tăng tốc độ)
+                const existingRows = dataBodyRange.rowCount;
+
+                // Mảng dữ liệu ghi vào Excel (Lấy đúng 12 cột từ A đến L theo ảnh của bạn)
                 let valuesToWrite = [];
                 for (let i = 0; i < numberOfNewRows; i++) {
                     const d = extractedResults[i];
-                    const stt = sttCount + 1 + i;
+                    const stt = maxStt + 1 + i;
 
-                    // Xây dựng mảng giá trị dựa theo thứ tự cột trong bảng Excel của bạn:
-                    // Tôi đang giả định thứ tự cột trên ảnh: STT(A), NGÀY(B), SỐ IL(C), CBQL(D), SỐ HÓA ĐƠN(E), NGÀY HÓA ĐƠN(F), ĐƠN VỊ BÁN(G), MST(H)...
-                    // BẠN CẦN KIỂM TRA LẠI THỨ TỰ CỘT VÀ CHỈNH SỬA MẢNG DƯỚI ĐÂY CHO KHỚP VỚI BẢNG THỰC TẾ CỦA BẠN
                     const rowData = [
-                        stt,                  // Cột A: STT
-                        "",                   // Cột B: NGÀY
-                        "",                   // Cột C: SỐ IL
-                        "",                   // Cột D: CBQL
-                        d.soHoaDon || "",     // Cột E: SỐ HÓA ĐƠN
-                        d.ngayXuat || "",     // Cột F: NGÀY HÓA ĐƠN
-                        d.donViBan || "",     // Cột G: ĐƠN VỊ BÁN
-                        d.maSoThue || "",     // Cột H: MST
-                        "",                   // Cột I: LOẠI HÌNH
-                        "",                   // Cột J: TRƯỚC VAT
-                        d.soTienTruocVAT ?? "", // Cột K (ước tính): TRƯỚC VAT
-                        d.thueVAT ?? "",        // Cột L (ước tính): VAT
-                        d.tongSoTien ?? ""      // Cột M (ước tính): SAU VAT
+                        stt,                    // A: STT
+                        "",                     // B: NGÀY
+                        "",                     // C: SỐ IL
+                        "",                     // D: CBQL
+                        d.soHoaDon || "",       // E: SỐ HÓA ĐƠN
+                        d.ngayXuat || "",       // F: NGÀY HÓA ĐƠN
+                        d.donViBan || "",       // G: ĐƠN VỊ BÁN
+                        d.maSoThue || "",       // H: MST
+                        "",                     // I: LOẠI HÌNH
+                        d.soTienTruocVAT ?? "", // J: TRƯỚC VAT
+                        d.thueVAT ?? "",        // K: VAT
+                        d.tongSoTien ?? ""      // L: SAU VAT
                     ];
                     valuesToWrite.push(rowData);
                 }
 
-                // Ghi toàn bộ dữ liệu mới vào vùng vừa chèn
-                const writeRange = newRange.getResizedRange(numberOfNewRows - 1, valuesToWrite[0].length - 1);
-                writeRange.values = valuesToWrite;
+                // 1. Thêm số lượng dòng trống vào bảng (tự động chèn trước dòng Total)
+                if (numberOfNewRows > 0) {
+                    table.rows.add(null, numberOfNewRows);
+                    await context.sync();
+                }
 
-                // Tự động điều chỉnh kích thước cột cho dễ nhìn (tuỳ chọn)
-                table.columns.load("items");
+                // 2. Lấy lại vùng dữ liệu mới sau khi đã chèn dòng
+                const newDataBodyRange = table.getDataBodyRange();
+                newDataBodyRange.load("rowCount, columnCount");
                 await context.sync();
 
+                // 3. Trỏ đến vùng các dòng mới chèn
+                const startRowIndex = existingRows; 
+                // 12 cột => index từ 0 đến 11. Nếu bảng có cột M (13 cột), hãy sửa số 11 thành 12.
+                const targetRange = newDataBodyRange.getCell(startRowIndex, 0).getResizedRange(numberOfNewRows - 1, 11);
+
+                // 4. Gán giá trị vào Range
+                targetRange.values = valuesToWrite;
+                
                 await context.sync();
             });
 
