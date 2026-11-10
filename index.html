@@ -274,30 +274,30 @@
     }
 
     // ====== PHẦN THAY ĐỔI CHÍNH: DÙNG OFFICE.JS THAY VÌ ONLYOFFICE ======
-    async function insertAllToSheet() {
+        async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
         try {
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
                 
-                // 1. Lấy Table trên Sheet
+                // 1. Lấy Table
                 const tables = sheet.tables;
                 tables.load("items/name");
                 await context.sync();
 
                 if (tables.items.length === 0) {
-                    throw new Error("Không tìm thấy Table. Vui lòng bôi đen vùng dữ liệu và nhấn Ctrl+T để tạo Table trước.");
+                    throw new Error("Không tìm thấy Table. Vui lòng tạo Table trước.");
                 }
-
                 const table = tables.items[0];
+
+                // 2. Tìm STT lớn nhất (Đọc dữ liệu cột A)
                 const dataBodyRange = table.getDataBodyRange();
-                dataBodyRange.load("values");
+                dataBodyRange.load("rowCount, values");
                 await context.sync();
 
-                // 2. Tìm STT lớn nhất
                 let maxStt = 0;
-                if (dataBodyRange.values && dataBodyRange.values.length > 0) {
+                if (dataBodyRange.rowCount > 0 && dataBodyRange.values) {
                     dataBodyRange.values.forEach(row => {
                         const val = parseInt(row[0], 10);
                         if (!isNaN(val) && val > maxStt) {
@@ -306,59 +306,66 @@
                     });
                 }
 
-                // 3. Chuẩn bị dữ liệu (13 cột từ A đến M)
+                // 3. Chuyển toàn bộ dữ liệu thành chuỗi (String) để tránh lỗi định dạng
                 let valuesToWrite = [];
                 for (let i = 0; i < extractedResults.length; i++) {
                     const d = extractedResults[i];
-                    const stt = maxStt + 1 + i;
+                    const stt = String(maxStt + 1 + i);
 
-                    const rowData = [
-                        stt,                    // A: STT
-                        "",                     // B: NGÀY
-                        "",                     // C: SỐ IL
-                        "",                     // D: CBQL
-                        d.soHoaDon || "",       // E: SỐ HÓA ĐƠN
-                        d.ngayXuat || "",       // F: NGÀY HÓA ĐƠN
-                        d.donViBan || "",       // G: ĐƠN VỊ BÁN
-                        d.maSoThue || "",       // H: MST
-                        "",                     // I: LOẠI HÌNH
-                        d.soTienTruocVAT ?? "", // J: TRƯỚC VAT
-                        d.thueVAT ?? "",        // K: VAT
-                        d.tongSoTien ?? "",     // L: SAU VAT
-                        ""                      // M: GHI CHÚ
-                    ];
-                    valuesToWrite.push(rowData);
+                    valuesToWrite.push([
+                        stt,                                  // A: STT
+                        "",                                   // B: NGÀY
+                        "",                                   // C: SỐ IL
+                        "",                                   // D: CBQL
+                        String(d.soHoaDon || ""),             // E: SỐ HÓA ĐƠN
+                        String(d.ngayXuat || ""),             // F: NGÀY HÓA ĐƠN
+                        String(d.donViBan || ""),             // G: ĐƠN VỊ BÁN
+                        String(d.maSoThue || ""),             // H: MST
+                        "",                                   // I: LOẠI HÌNH
+                        String(d.soTienTruocVAT ?? ""),       // J: TRƯỚC VAT
+                        String(d.thueVAT ?? ""),              // K: VAT
+                        String(d.tongSoTien ?? ""),           // L: SAU VAT
+                        ""                                    // M: GHI CHÚ
+                    ]);
                 }
 
-                // 4. TÌM VỊ TRÍ CHÈN: Luôn chèn vào ngay trước dòng Total cuối cùng
-                table.load("rows/count");
-                await context.sync();
+                // 4. Lấy dòng cuối cùng của phần dữ liệu (ngay trên dòng Total) và chèn xuống
+                if (dataBodyRange.rowCount > 0) {
+                    // Nếu bảng đã có dữ liệu, chèn vào dòng cuối cùng
+                    const lastRow = dataBodyRange.getLastRow();
+                    lastRow.getOffsetRange(1, 0).insert(Excel.InsertShiftDirection.down, valuesToWrite.length);
+                } else {
+                    // Nếu bảng chưa có dữ liệu (chỉ có header và total)
+                    // Chèn vào vị trí index 1 (ngay dưới header)
+                    table.rows.add(1, valuesToWrite.length);
+                }
                 
-                // Vị trí index để chèn (0 là header, nên dòng dữ liệu đầu tiên là 1)
-                // Nếu bảng có 2 dòng (Header + Total) -> chèn vào index 1.
-                let insertIndex = table.rows.count - 1; 
+                await context.sync(); // Bắt buộc sync để Excel vẽ dòng mới
 
-                // 5. Thực hiện chèn dòng trống vào trước Total
-                table.rows.add(insertIndex, valuesToWrite.length);
+                // 5. Load lại vùng dữ liệu mới và ghi giá trị
+                const newDataBodyRange = table.getDataBodyRange();
+                newDataBodyRange.load("rowCount");
                 await context.sync();
 
-                // 6. GHI DỮ LIỆU TRỰC TIẾP VÀO CÁC DÒNG VỪA CHÈN
-                // Lấy vùng dữ liệu tại vị trí vừa chèn và gán thẳng mảng values
-                let targetRange = table.rows.getItemAt(insertIndex).getRange();
-                // Cắt vùng range cho vừa đúng số cột (13 cột) và số dòng
-                targetRange = targetRange.getResizedRange(valuesToWrite.length - 1, 12);
+                // Lấy vùng range bắt đầu từ dòng mới chèn đến hết số dòng cần ghi
+                const startRow = newDataBodyRange.rowCount - valuesToWrite.length;
+                
+                // Cắt chính xác vùng cần ghi (13 cột từ A đến M, index 0 đến 12)
+                const targetRange = newDataBodyRange.getCell(startRow, 0).getResizedRange(valuesToWrite.length - 1, 12);
+                
+                // Gán dữ liệu
                 targetRange.values = valuesToWrite;
                 
                 await context.sync();
             });
 
             const statusDiv = document.getElementById('status');
-            statusDiv.innerText = `✓ Đã chèn ${extractedResults.length} hóa đơn vào bảng tính!`;
+            statusDiv.innerText = `✓ Đã chèn ${extractedResults.length} hóa đơn thành công!`;
             statusDiv.style.color = "#198754";
         } catch (error) {
-            console.error("Lỗi khi chèn vào Excel:", error);
+            console.error("Lỗi chi tiết:", error);
             const statusDiv = document.getElementById('status');
-            statusDiv.innerText = "Lỗi khi chèn vào Excel: " + error.message;
+            statusDiv.innerText = "Lỗi: " + error.message;
             statusDiv.style.color = "#dc3545";
         }
     }
