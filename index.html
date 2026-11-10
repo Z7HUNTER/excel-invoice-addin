@@ -292,12 +292,12 @@
 
                 const table = tables.items[0];
                 const dataBodyRange = table.getDataBodyRange();
-                dataBodyRange.load("rowCount, values");
+                dataBodyRange.load("values");
                 await context.sync();
 
-                // 2. Tìm STT lớn nhất (nếu có dữ liệu cũ)
+                // 2. Tìm STT lớn nhất
                 let maxStt = 0;
-                if (dataBodyRange.rowCount > 0 && dataBodyRange.values) {
+                if (dataBodyRange.values && dataBodyRange.values.length > 0) {
                     dataBodyRange.values.forEach(row => {
                         const val = parseInt(row[0], 10);
                         if (!isNaN(val) && val > maxStt) {
@@ -306,11 +306,9 @@
                     });
                 }
 
-                const numberOfNewRows = extractedResults.length;
-
-                // 3. Chuẩn bị mảng dữ liệu 13 cột
+                // 3. Chuẩn bị dữ liệu (13 cột từ A đến M)
                 let valuesToWrite = [];
-                for (let i = 0; i < numberOfNewRows; i++) {
+                for (let i = 0; i < extractedResults.length; i++) {
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
 
@@ -332,23 +330,23 @@
                     valuesToWrite.push(rowData);
                 }
 
-                // 4. Thêm dòng vào Table (Nó sẽ tự chèn phía trên dòng Total)
-                if (numberOfNewRows > 0) {
-                    table.rows.add(null, numberOfNewRows);
-                    await context.sync(); // Bắt buộc sync để Excel kịp render dòng mới
-                }
-
-                // 5. Lấy lại vùng Table sau khi đã thêm dòng
+                // 4. TÌM VỊ TRÍ CHÈN: Luôn chèn vào ngay trước dòng Total cuối cùng
                 table.load("rows/count");
                 await context.sync();
+                
+                // Vị trí index để chèn (0 là header, nên dòng dữ liệu đầu tiên là 1)
+                // Nếu bảng có 2 dòng (Header + Total) -> chèn vào index 1.
+                let insertIndex = table.rows.count - 1; 
 
-                // 6. Tính toán vị trí ghi dữ liệu: Các dòng mới nằm ngay TRƯỚC dòng Total (dòng cuối cùng)
-                // Nếu Table có 2 dòng (1 header, 1 total) và thêm 1 dòng mới -> Mảng rows.count = 3. 
-                // Dòng mới sẽ nằm ở index 1 (từ 0 đến count-1, dòng total luôn là count-1)
-                const newDataStartRowIndex = table.rows.count - 1 - numberOfNewRows;
+                // 5. Thực hiện chèn dòng trống vào trước Total
+                table.rows.add(insertIndex, valuesToWrite.length);
+                await context.sync();
 
-                // 7. Lấy vùng Range của các dòng mới và ghi dữ liệu
-                const targetRange = table.getRange().getCell(newDataStartRowIndex + 1, 0).getResizedRange(numberOfNewRows - 1, 12);
+                // 6. GHI DỮ LIỆU TRỰC TIẾP VÀO CÁC DÒNG VỪA CHÈN
+                // Lấy vùng dữ liệu tại vị trí vừa chèn và gán thẳng mảng values
+                let targetRange = table.rows.getItemAt(insertIndex).getRange();
+                // Cắt vùng range cho vừa đúng số cột (13 cột) và số dòng
+                targetRange = targetRange.getResizedRange(valuesToWrite.length - 1, 12);
                 targetRange.values = valuesToWrite;
                 
                 await context.sync();
