@@ -342,7 +342,7 @@
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
 
-                    // Chuyển đổi "dd/mm/yyyy" thành số Serial Date của Excel để tránh lỗi Timezone
+                    // Tính số Serial Date trực tiếp bằng toán học (Không dùng Date object để tránh lỗi múi giờ)
                     let dateValue = "";
                     if (d.ngayXuat) {
                         const parts = d.ngayXuat.split('/');
@@ -351,11 +351,23 @@
                             const month = parseInt(parts[1], 10);
                             const year = parseInt(parts[2], 10);
                             
-                            // Công thức chuyển đổi Ngày sang Số Serial của Excel
-                            const jsDate = new Date(year, month - 1, day);
-                            const time = jsDate.getTime();
-                            const excelEpoch = new Date(1899, 11, 30).getTime();
-                            dateValue = (time - excelEpoch) / (24 * 60 * 60 * 1000);
+                            // Công thức chuyển đổi Ngày Dương lịch sang số Serial của Excel
+                            const daysInMonths = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+                            // Kiểm tra năm nhuận
+                            if ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) {
+                                daysInMonths[2] = 29;
+                            }
+                            
+                            let daysSince1900 = (year - 1900) * 365 + Math.floor((year - 1901) / 4) + day;
+                            for (let m = 1; m < month; m++) {
+                                daysSince1900 += daysInMonths[m];
+                            }
+                            
+                            // Bù trừ lỗi năm 1900 của Excel
+                            if (year > 1900 || (year === 1900 && month > 2)) {
+                                daysSince1900 += 1;
+                            }
+                            dateValue = daysSince1900 + 1; 
                         }
                     }
 
