@@ -3,28 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <title>Đọc Hóa Đơn AI</title>
+    <!-- Office.js bắt buộc -->
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
         body { background-color: #f8f9fa; color: #212529; height: 100vh; display: flex; flex-direction: column; }
         .container { padding: 16px; overflow-y: auto; flex: 1; }
         .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; }
         h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; }
         
-        /* VÙNG DÁN FILE (SMART PASTE ZONE) */
-        .dropzone { border: 3px dashed #0d6efd; border-radius: 8px; padding: 30px 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; cursor: pointer; transition: all 0.2s; outline: none; }
-        .dropzone:focus { background-color: #e1f0ff; border-color: #0b5ed7; box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25); }
-        .dropzone.dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; transform: scale(1.02); }
-
-        #fileName { color: #0b5ed7; font-size: 15px; font-weight: 700; display: block; margin-bottom: 10px; }
-        .paste-hint { display: block; font-size: 13px; color: #6c757d; margin-bottom: 5px; font-weight: normal; }
-        .icon-big { font-size: 40px; margin-bottom: 10px; display: block; }
-
-        .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
-        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
-        .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; }
+        /* CSS tối ưu cho khu vực kéo thả (Bỏ nút bấm) */
+        .file-input-wrapper { 
+            border: 2px dashed #0d6efd; 
+            border-radius: 8px; 
+            padding: 40px 20px; /* Tăng chiều cao để dễ kéo thả hơn */
+            text-align: center; 
+            background: #f0f7ff; 
+            color: #0d6efd; 
+            transition: all 0.3s ease;
+        }
         
-        .status { margin-top: 10px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; }
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        #fileName { color: #0b5ed7; font-size: 15px; font-weight: 600; display: block; margin-bottom: 10px; }
+        .paste-hint { display: block; font-size: 13px; color: #495057; line-height: 1.5; }
+        .paste-hint strong { color: #0d6efd; }
+
+        .btn { background-color: #0d6efd; color: #fff; border: none; padding: 12px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 15px; }
+        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-top: 10px; display: none; width: 100%; }
+        
+        .status { margin-top: 12px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; text-align: center; }
         
         .preview-table-container { overflow-x: auto; border-radius: 6px; border: 1px solid #b0b8c1; margin-top: 12px; }
         .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; background-color: #fff; color: #111; }
@@ -32,25 +45,26 @@
         .preview-table th { background-color: #343a40; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; }
         .preview-table td { color: #000; font-weight: 500; background-color: #fff; }
         .preview-table tbody tr:nth-child(even) td { background-color: #f8fafc; }
-        .preview-table tbody tr:hover td { background-color: #e2e8f0; }
+        
+        /* Hiệu ứng khi kéo file vào vùng */
+        .dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; transform: scale(1.02); }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="card">
-        <h2>Vùng Dán & Kéo Thả Hóa Đơn</h2>
+        <h2>Tải lên Hóa đơn</h2>
         
-        <!-- VÙNG DÁN THÔNG MINH -->
-        <div class="dropzone" id="dropZone" tabindex="0">
-            <span class="icon-big">📋</span>
-            <span id="fileName">Chưa có tệp nào được chọn</span>
-            <span class="paste-hint">👉 Click vào đây, sau đó bấm <b>Ctrl + V</b> để dán ảnh chụp màn hình.</span>
-            <span class="paste-hint">👉 Hoặc <b>kéo thả</b> file PDF/Ảnh từ thư mục vào đây.</span>
+        <!-- Vùng kéo thả tập trung -->
+        <div class="file-input-wrapper" id="dropZone">
+            <span class="upload-icon">📥</span>
+            <span id="fileName">Kéo thả file ảnh/PDF vào đây</span>
+            <span class="paste-hint">hoặc nhấn <strong>Ctrl + V</strong> để dán ảnh trực tiếp từ bộ nhớ tạm.</span>
         </div>
 
-        <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file</button>
-        <button id="processBtn" class="btn" disabled onclick="processAllInvoices()" style="margin-top: 20px;">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
+        <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã nhận</button>
+        <button id="processBtn" class="btn" disabled onclick="processAllInvoices()">Đọc Hóa Đơn & Xuất Kết Quả</button>
         <div id="status" class="status"></div>
     </div>
 
@@ -78,24 +92,29 @@
 </div>
 
 <script>
+    // ====== CẤU HÌNH ======
     const GEMINI_MODEL = "gemini-3.8-flash"; 
+
     let selectedFiles = [];
     let extractedResults = [];
 
+    // Office.js khởi tạo
     Office.onReady(function(info) {
         if (info.host === Office.HostType.Excel) {
-            setupSmartPasteZone();
+            console.log("Excel add-in đã sẵn sàng");
+            setupDragAndDrop(); 
+            setupPasteListener();
         }
     });
 
-    // ====== VÙNG DÁN VÀ KÉO THẢ THÔNG MINH ======
-    function setupSmartPasteZone() {
-        const dropZone = document.getElementById('dropZone');
-        
-        // Tự động focus vào vùng này để sẵn sàng nhận Ctrl+V
-        dropZone.focus();
+    function updateFileStatusText(text) {
+        document.getElementById('fileName').innerText = text;
+    }
 
-        // 1. Xử lý Kéo Thả File
+    // ====== TÍNH NĂNG KÉO THẢ FILE ======
+    function setupDragAndDrop() {
+        const dropZone = document.getElementById('dropZone');
+
         window.addEventListener("dragover", function(e) { e.preventDefault(); }, false);
         window.addEventListener("drop", function(e) { e.preventDefault(); }, false);
 
@@ -112,91 +131,61 @@
         dropZone.addEventListener('drop', function(e) {
             e.preventDefault();
             dropZone.classList.remove('dragover');
+            
             const files = Array.from(e.dataTransfer.files);
-            const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+            const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
             
             if (validFiles.length > 0) {
-                addFiles(validFiles);
-                updateStatus(`✓ Đã thêm ${validFiles.length} tệp qua kéo thả.`, "#198754");
-            } else {
-                updateStatus("Vui lòng chỉ kéo thả file Ảnh hoặc PDF!", "#dc3545");
+                selectedFiles = selectedFiles.concat(validFiles);
+                updateFileStatusText(`📁 Đã nhận ${selectedFiles.length} hóa đơn`);
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('clearBtn').style.display = 'block';
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerText = `✓ Đã thêm ${validFiles.length} tệp qua kéo thả.`;
+                statusDiv.style.color = "#198754";
             }
         });
+    }
 
-        // 2. Xử lý Dán Ảnh (Ctrl + V)
+    // ====== TÍNH NĂNG DÁN (CTRL+V) ======
+    function setupPasteListener() {
         document.addEventListener('paste', function (event) {
             const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-            let pastedFiles = [];
-            
-            // Kiểm tra xem có phải dán Text (đường dẫn file) không
-            const pastedText = (event.clipboardData || window.clipboardData).getData('text');
-            if (pastedText && (pastedText.startsWith('http') || pastedText.endsWith('.pdf'))) {
-                 // Nếu là link, tự động tải về
-                 if(pastedText.startsWith('http')) {
-                     fetchFileFromUrl(pastedText);
-                     return;
-                 }
-            }
-
-            // Xử lý dán ảnh
+            let newPastedFiles = [];
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf("image") !== -1) {
                     const blob = items[i].getAsFile();
                     if (blob) {
-                        const fileName = `screenshot_${Date.now()}_${pastedFiles.length + 1}.png`;
-                        pastedFiles.push(new File([blob], fileName, { type: blob.type }));
+                        const fileName = `screenshot_${Date.now()}_${selectedFiles.length + newPastedFiles.length + 1}.png`;
+                        newPastedFiles.push(new File([blob], fileName, { type: blob.type }));
                     }
                 }
             }
-            
-            if (pastedFiles.length > 0) {
-                addFiles(pastedFiles);
-                updateStatus(`✓ Đã dán ${pastedFiles.length} ảnh từ Clipboard.`, "#198754");
+            if (newPastedFiles.length > 0) {
+                selectedFiles = selectedFiles.concat(newPastedFiles);
+                updateFileStatusText(`📋 Đã nhận ${selectedFiles.length} hóa đơn`);
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('clearBtn').style.display = 'block';
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerText = `✓ Đã dán thêm ${newPastedFiles.length} ảnh.`;
+                statusDiv.style.color = "#198754";
             }
         });
     }
 
-    // Hàm tải file từ link (Nếu dán link)
-    async function fetchFileFromUrl(url) {
-        updateStatus("⏳ Đang tải file từ link...", "#0d6efd");
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("Không thể tải file từ link này (Có thể do chặn CORS).");
-            const blob = await response.blob();
-            let fileName = url.split('/').pop().split('?')[0] || `file_tu_url_${Date.now()}.pdf`;
-            if (!fileName.includes('.')) fileName += '.pdf';
-            
-            const file = new File([blob], fileName, { type: blob.type });
-            addFiles([file]);
-            updateStatus(`✓ Đã tải xong file từ URL.`, "#198754");
-        } catch (error) {
-            updateStatus("Lỗi tải file: " + error.message, "#dc3545");
-        }
-    }
-
-    function addFiles(files) {
-        selectedFiles = selectedFiles.concat(files);
-        document.getElementById('fileName').innerText = `📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`;
-        document.getElementById('processBtn').disabled = false;
-        document.getElementById('clearBtn').style.display = 'inline-block';
-    }
-
-    function updateStatus(text, color) {
-        const statusDiv = document.getElementById('status');
-        statusDiv.innerText = text;
-        statusDiv.style.color = color;
-    }
-
+    // ====== XÓA FILE ======
     function clearSelectedFiles(event) {
         if (event) event.stopPropagation();
         selectedFiles = [];
-        document.getElementById('fileName').innerText = 'Chưa có tệp nào được chọn';
+        document.getElementById('fileName').innerText = 'Kéo thả file ảnh/PDF vào đây';
         document.getElementById('processBtn').disabled = true;
         document.getElementById('clearBtn').style.display = 'none';
-        updateStatus('Đã xóa danh sách file.', '#6c757d');
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerText = 'Đã xóa danh sách file.';
+        statusDiv.style.color = '#6c757d';
     }
 
-    // ====== XỬ LÝ AI ======
+    // ====== TIỆN ÍCH CHUẨN HÓA SỐ ======
     function parsePureNumber(val) {
         if (val === null || val === undefined || val === "") return "";
         var str = String(val).trim().replace(/[^0-9.,\-]/g, '');
@@ -221,15 +210,23 @@
 
     async function fetchWithRetry(url, options, maxRetries = 3, initialDelay = 1500) {
         let delay = initialDelay;
+        const statusDiv = document.getElementById('status');
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const response = await fetch(url, options);
                 const data = await response.json();
-                if (data.error) throw new Error(data.error.message);
+                if (data.error) {
+                    if (data.error.code === 503 || data.error.code === 429 || (data.error.message && data.error.message.includes("demand"))) {
+                        throw new Error(data.error.message);
+                    }
+                    throw new Error("API Error: " + data.error.message);
+                }
                 return data;
             } catch (error) {
+                console.warn(`Thử lại ${attempt}/${maxRetries}: ${error.message}`);
                 if (attempt === maxRetries) throw error;
-                updateStatus(`⏳ Máy chủ bận, đang thử lại (${attempt}/${maxRetries})...`, "#fd7e14");
+                statusDiv.innerText = `⏳ Máy chủ bận, đang thử lại (${attempt}/${maxRetries})...`;
+                statusDiv.style.color = "#fd7e14";
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2;
             }
@@ -245,7 +242,9 @@
         });
     }
 
+    // ====== XỬ LÝ HÓA ĐƠN QUA API ======
     async function processAllInvoices() {
+        const statusDiv = document.getElementById('status');
         const processBtn = document.getElementById('processBtn');
         processBtn.disabled = true;
         extractedResults = [];
@@ -257,16 +256,17 @@
   "ngayXuat": "string (dd/mm/yyyy)",
   "donViBan": "string",
   "maSoThue": "string",
-  "soTienTruocVAT": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 867300)",
-  "thueVAT": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 73964)",
-  "tongSoTien": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 941264)"
+  "soTienTruocVAT": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 867300 hoặc 867300.5)",
+  "thueVAT": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 73964 hoặc 73964.5)",
+  "tongSoTien": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 941264 hoặc 941264.5)"
 }`;
 
         const apiUrl = `https://gemini-invoice-proxy.trieudong-5277.workers.dev/`;
 
         for (let i = 0; i < selectedFiles.length; i++) {
             const file = selectedFiles[i];
-            updateStatus(`⏳ Đang đọc file (${i + 1}/${selectedFiles.length}): ${file.name}...`, "#0d6efd");
+            statusDiv.innerText = `⏳ Đang đọc file (${i + 1}/${selectedFiles.length}): ${file.name}...`;
+            statusDiv.style.color = "#0d6efd";
             try {
                 const base64Data = await fileToBase64(file);
                 let mimeType = file.type;
@@ -293,18 +293,21 @@
                         jsonRes.thueVAT = parsePureNumber(jsonRes.thueVAT);
                         jsonRes.tongSoTien = parsePureNumber(jsonRes.tongSoTien);
                         extractedResults.push(jsonRes);
-                    } else { throw new Error("Không tìm thấy cấu trúc JSON."); }
+                    } else { throw new Error("Không tìm thấy cấu trúc JSON trong phản hồi."); }
                 } else { throw new Error("Không nhận được nội dung từ AI."); }
             } catch (err) {
+                console.error(`Lỗi file ${file.name}:`, err);
                 errorMessages.push(`${file.name}: ${err.message}`);
             }
         }
 
         if (extractedResults.length > 0) {
             showPreviewList(extractedResults);
-            updateStatus(`✓ Hoàn tất! Đã đọc thành công ${extractedResults.length}/${selectedFiles.length} hóa đơn.`, "#198754");
+            statusDiv.innerText = `✓ Hoàn tất! Đã đọc thành công ${extractedResults.length}/${selectedFiles.length} hóa đơn.`;
+            statusDiv.style.color = "#198754";
         } else {
-            updateStatus("Lỗi: " + (errorMessages.join(" | ") || "Không xác định"), "#dc3545");
+            statusDiv.innerText = "Không thể đọc được hóa đơn. Lỗi: " + (errorMessages.join(" | ") || "Lỗi không xác định");
+            statusDiv.style.color = "#dc3545";
         }
         processBtn.disabled = false;
     }
@@ -329,7 +332,6 @@
     // ====== CHÈN EXCEL ======
     async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
-
         try {
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -337,7 +339,10 @@
                 tables.load("items/name");
                 await context.sync();
 
-                if (tables.items.length === 0) throw new Error("Không tìm thấy Table.");
+                if (tables.items.length === 0) {
+                    throw new Error("Không tìm thấy Table. Vui lòng bôi đen vùng dữ liệu và nhấn Ctrl+T để tạo Table trước.");
+                }
+
                 const table = tables.items[0];
                 const dataBodyRange = table.getDataBodyRange();
                 dataBodyRange.load("values");
@@ -359,27 +364,26 @@
                 for (let i = 0; i < extractedResults.length; i++) {
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
-
                     const rowData = [
                         String(stt), "", "", "",
-                        String(d.soHoaDon || ""),
-                        String(d.ngayXuat || ""),
-                        String(d.donViBan || ""),
-                        String(d.maSoThue || ""),
-                        "",
-                        String(d.soTienTruocVAT ?? ""),
-                        String(d.thueVAT ?? ""),
-                        String(d.tongSoTien ?? ""),
-                        ""
+                        String(d.soHoaDon || ""), String(d.ngayXuat || ""),
+                        String(d.donViBan || ""), String(d.maSoThue || ""),
+                        "", String(d.soTienTruocVAT ?? ""),
+                        String(d.thueVAT ?? ""), String(d.tongSoTien ?? ""), ""
                     ];
-
                     table.rows.add(insertIndex + i, [rowData]);
                     await context.sync(); 
                 }
             });
-            updateStatus(`✓ Đã chèn ${extractedResults.length} hóa đơn vào bảng tính!`, "#198754");
+
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = `✓ Đã chèn ${extractedResults.length} hóa đơn vào bảng tính!`;
+            statusDiv.style.color = "#198754";
         } catch (error) {
-            updateStatus("Lỗi khi chèn vào Excel: " + error.message, "#dc3545");
+            console.error("Lỗi:", error);
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "Lỗi khi chèn: " + error.message;
+            statusDiv.style.color = "#dc3545";
         }
     }
 </script>
