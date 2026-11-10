@@ -50,11 +50,10 @@
             <span id="fileName">Chưa có tệp nào được chọn</span>
             <span class="paste-hint">💡 Hoặc kéo thả tệp từ máy tính vào khung này. Có thể bấm Ctrl + V để dán ảnh.</span>
             
-            <!-- THÊM MỚI: Thẻ input file ẩn -->
             <input type="file" id="fileInput" accept="image/*,application/pdf" multiple style="display: none;" onchange="handleFileSelect(event)">
             
-            <!-- SỬA LẠI: Nút bấm gọi trực tiếp đến thẻ input ẩn thay vì openFilePicker -->
-            <button class="btn-select-file" onclick="document.getElementById('fileInput').click()">📂 Chọn Tệp Từ Máy Tính</button>
+            <!-- THAY ĐỔI Ở ĐÂY: Dùng một function riêng thay vì gọi trực tiếp document.getElementById -->
+            <button class="btn-select-file" onclick="triggerFileInput()">📂 Chọn Tệp Từ Máy Tính</button>
         </div>
 
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
@@ -99,6 +98,16 @@
             setupDragAndDrop(); // Kích hoạt tính năng kéo thả
         }
     });
+
+    // ====== HÀM MỚI ĐỂ KÍCH HOẠT INPUT FILE ======
+    function triggerFileInput() {
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.click();
+        } else {
+            console.error("Không tìm thấy thẻ input file.");
+        }
+    }
 
     // ====== HÀM XỬ LÝ KHI NGƯỜI DÙNG CHỌN FILE TỪ MÁY TÍNH ======
     function handleFileSelect(event) {
