@@ -15,7 +15,6 @@
         .file-input-wrapper:hover { background: #e1f0ff; }
         #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; }
         .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-top: 6px; font-weight: normal; }
-        input[type="file"] { display: none; }
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
         .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; }
@@ -34,11 +33,14 @@
 <div class="container">
     <div class="card">
         <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
-        <div class="file-input-wrapper" onclick="document.getElementById('fileInput').click()">
-            <span id="fileName">Nhấp vào đây để chọn một hoặc nhiều tệp (.png, .jpg, .pdf)</span>
-            <span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
-            <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
-        </div>
+        <!-- Chuyển thẻ div thành thẻ label để kích hoạt input một cách tự nhiên -->
+	<label class="file-input-wrapper" style="display: block; margin: 0;">
+    		<span id="fileName">Nhấp vào đây để chọn một hoặc nhiều tệp (.png, .jpg, .pdf)</span>
+    		<span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
+    
+    	<!-- Bỏ display: none trong CSS đi, thay vào đó dùng opacity: 0 và position để ẩn input đi nhưng vẫn có thể click được -->
+    		<input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)" style="opacity: 0; position: absolute; width: 100%; height: 100%; top: 0; left: 0; cursor: pointer;">
+	</label>
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
         <button id="processBtn" class="btn" disabled onclick="processAllInvoices()">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
         <div id="status" class="status"></div>
