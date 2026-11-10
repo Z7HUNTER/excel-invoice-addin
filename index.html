@@ -11,14 +11,26 @@
         .container { padding: 16px; overflow-y: auto; flex: 1; }
         .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; }
         h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; }
-        .file-input-wrapper { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; cursor: pointer; color: #0d6efd; font-weight: 600; }
+        
+        /* CSS mới cho khu vực chọn file */
+        .file-input-wrapper { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; }
         .file-input-wrapper:hover { background: #e1f0ff; }
-        #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; }
-        .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-top: 6px; font-weight: normal; }
+        #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 10px; }
+        .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-bottom: 15px; font-weight: normal; }
+        
+        /* Nút bấm chọn file thật sự */
+        .btn-select-file {
+            background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block;
+        }
+        .btn-select-file:hover { background-color: #0b5ed7; }
+        /* Ẩn input file đi nhưng không dùng display:none để vẫn kích hoạt được */
+        #fileInput { display: none; }
+
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
         .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; }
         .status { margin-top: 10px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; }
+        
         .preview-table-container { overflow-x: auto; border-radius: 6px; border: 1px solid #b0b8c1; margin-top: 12px; }
         .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; background-color: #fff; color: #111; }
         .preview-table th, .preview-table td { border: 1px solid #cbd5e1; padding: 10px 8px; text-align: left; vertical-align: middle; }
@@ -33,14 +45,19 @@
 <div class="container">
     <div class="card">
         <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
-        <!-- Chuyển thẻ div thành thẻ label để kích hoạt input một cách tự nhiên -->
-	<label class="file-input-wrapper" style="display: block; margin: 0;">
-    		<span id="fileName">Nhấp vào đây để chọn một hoặc nhiều tệp (.png, .jpg, .pdf)</span>
-    		<span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
-    
-    	<!-- Bỏ display: none trong CSS đi, thay vào đó dùng opacity: 0 và position để ẩn input đi nhưng vẫn có thể click được -->
-    		<input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)" style="opacity: 0; position: absolute; width: 100%; height: 100%; top: 0; left: 0; cursor: pointer;">
-	</label>
+        
+        <!-- KHU VỰC CHỌN FILE ĐÃ ĐƯỢC SỬA LẠI -->
+        <div class="file-input-wrapper">
+            <span id="fileName">Chưa có tệp nào được chọn</span>
+            <span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
+            
+            <!-- Nút bấm thật để kích hoạt input -->
+            <button class="btn-select-file" onclick="document.getElementById('fileInput').click()">📂 Chọn Tệp Từ Máy Tính</button>
+            
+            <!-- Thẻ input được ẩn bằng display:none nhưng được gọi qua nút bấm -->
+            <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
+        </div>
+
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
         <button id="processBtn" class="btn" disabled onclick="processAllInvoices()">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
         <div id="status" class="status"></div>
@@ -71,7 +88,6 @@
 
 <script>
     // ====== CẤU HÌNH ======
-    // Tên model: kiểm tra lại trong Google AI Studio
     const GEMINI_MODEL = "gemini-3.8-flash"; 
 
     let selectedFiles = [];
@@ -84,7 +100,7 @@
         }
     });
 
-    // ====== CÁC HÀM XỬ LÝ FILE (giữ nguyên từ plugin cũ) ======
+    // ====== CÁC HÀM XỬ LÝ FILE ======
     document.addEventListener('paste', function (event) {
         const items = (event.clipboardData || event.originalEvent.clipboardData).items;
         let newPastedFiles = [];
@@ -115,7 +131,7 @@
         updateFileStatusText(`📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`);
         document.getElementById('processBtn').disabled = false;
         document.getElementById('clearBtn').style.display = 'inline-block';
-        event.target.value = '';
+        event.target.value = ''; // Reset input để có thể chọn lại cùng một file
     }
 
     function updateFileStatusText(text) {
@@ -125,7 +141,7 @@
     function clearSelectedFiles(event) {
         if (event) event.stopPropagation();
         selectedFiles = [];
-        document.getElementById('fileName').innerText = 'Nhấp vào đây để chọn một hoặc nhiều tệp (.png, .jpg, .pdf)';
+        document.getElementById('fileName').innerText = 'Chưa có tệp nào được chọn';
         document.getElementById('processBtn').disabled = true;
         document.getElementById('clearBtn').style.display = 'none';
         const statusDiv = document.getElementById('status');
@@ -275,8 +291,8 @@
         document.getElementById('resultCard').style.display = 'block';
     }
 
-    // ====== PHẦN THAY ĐỔI CHÍNH: DÙNG OFFICE.JS THAY VÌ ONLYOFFICE ======
-      async function insertAllToSheet() {
+    // ====== PHẦN CHÈN DỮ LIỆU VÀO EXCEL ======
+    async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
         try {
@@ -338,8 +354,8 @@
                         ""                                    // M: GHI CHÚ
                     ];
 
-                    // Chèn dòng mới và lấy vùng Range của dòng đó ngay lập tức
-                    const newRowRange = table.rows.add(insertIndex + i, [rowData]).getRange();
+                    // Chèn dòng mới và ghi dữ liệu ngay lập tức
+                    table.rows.add(insertIndex + i, [rowData]);
                     
                     // Bắt buộc phải sync ở mỗi vòng lặp để Excel kịp cập nhật cấu trúc bảng
                     await context.sync(); 
