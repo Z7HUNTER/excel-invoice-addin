@@ -8,38 +8,38 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f8f9fa; color: #212529; height: 100vh; display: flex; flex-direction: column; }
         .container { padding: 16px; overflow-y: auto; flex: 1; }
-        
-        /* Căn giữa thẻ card và nội dung bên trong */
-        .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; text-align: center; }
-        h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; text-align: center; }
+        .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; }
+        h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; }
         
         /* VÙNG CHỌN FILE */
-        .dropzone { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; transition: all 0.2s; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .dropzone { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; color: #0d6efd; font-weight: 600; transition: all 0.2s; cursor: pointer; }
         .dropzone:hover { background: #e1f0ff; border-color: #0b5ed7; }
         .dropzone.dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; transform: scale(1.02); }
 
-        #fileName { color: #0b5ed7; font-size: 15px; font-weight: 700; display: block; margin-bottom: 10px; text-align: center;}
-        .paste-hint { display: block; font-size: 13px; color: #6c757d; margin-bottom: 10px; font-weight: normal; text-align: center; }
+        #fileName { color: #0b5ed7; font-size: 15px; font-weight: 700; display: block; margin-bottom: 10px; }
+        .paste-hint { display: block; font-size: 13px; color: #6c757d; margin-bottom: 10px; font-weight: normal; }
         
-        /* Chỉnh nút bấm thành dạng khối nội tuyến và căn giữa tự động */
-        .btn-select-file { background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; margin: 0 auto; }
+        .btn-select-file { background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; }
         .btn-select-file:hover { background-color: #0b5ed7; }
 
         /* Input file ẩn */
         #fileInput { display: none; }
 
-        /* Các nút bấm khác */
-        .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; display: block; margin-left: auto; margin-right: auto;}
+        .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
-        .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; margin-left: auto; margin-right: auto; }
+        .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; }
         
-        .status { margin-top: 10px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; text-align: center; }
+        /* Nút kiểm tra trùng mới */
+        .btn-check-dup { background-color: #ffc107; color: #000; font-weight: 700; margin-top: 15px; }
+        .btn-check-dup:hover { background-color: #ffca2c; }
+
+        .status { margin-top: 10px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; }
         
         .preview-table-container { overflow-x: auto; border-radius: 6px; border: 1px solid #b0b8c1; margin-top: 12px; }
         .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; background-color: #fff; color: #111; }
         .preview-table th, .preview-table td { border: 1px solid #cbd5e1; padding: 10px 8px; text-align: left; vertical-align: middle; }
-        .preview-table th { background-color: #343a40; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; text-align: center; }
-        .preview-table td { color: #000; font-weight: 500; background-color: #fff; text-align: center;}
+        .preview-table th { background-color: #343a40; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; }
+        .preview-table td { color: #000; font-weight: 500; background-color: #fff; }
         .preview-table tbody tr:nth-child(even) td { background-color: #f8fafc; }
         .preview-table tbody tr:hover td { background-color: #e2e8f0; }
     </style>
@@ -56,13 +56,19 @@
             <span class="paste-hint">💡 Hoặc kéo thả file vào đây / bấm Ctrl+V để dán ảnh.</span>
             
             <button class="btn-select-file" onclick="document.getElementById('fileInput').click()">📂 Chọn Tệp Từ Máy Tính</button>
-            <!-- Thẻ input ẩn để kích hoạt hộp thoại -->
             <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
         </div>
 
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
-        <button id="processBtn" class="btn" disabled onclick="processAllInvoices()" style="margin-top: 20px;">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
+        <button id="processBtn" class="btn" disabled onclick="processAllInvoices()">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
+        
         <div id="status" class="status"></div>
+
+        <!-- NÚT KIỂM TRA TRÙNG LẶP -->
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #dee2e6;">
+        <h2>Kiểm Tra Dữ Liệu</h2>
+        <button class="btn btn-check-dup" onclick="checkDuplicates()">🔍 Kiểm Tra Hóa Đơn Trùng Lặp</button>
+        <div id="checkStatus" class="status" style="color: #0d6efd;"></div>
     </div>
 
     <div class="card" id="resultCard" style="display: none;">
@@ -99,39 +105,26 @@
         }
     });
 
-    // ====== HÀM CHỌN FILE TỪ HỘP THOẠI ======
     function handleFileSelect(event) {
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
         addFiles(files);
         updateStatus(`✓ Đã chọn ${files.length} tệp.`, "#198754");
-        event.target.value = ''; // Reset input
+        event.target.value = '';
     }
 
-    // ====== KÉO THẢ & DÁN ẢNH ======
     function setupDragAndDrop() {
         const dropZone = document.getElementById('dropZone');
-
         window.addEventListener("dragover", function(e) { e.preventDefault(); }, false);
         window.addEventListener("drop", function(e) { e.preventDefault(); }, false);
 
-        dropZone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-
-        dropZone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-        });
-
+        dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', function(e) { e.preventDefault(); dropZone.classList.remove('dragover'); });
         dropZone.addEventListener('drop', function(e) {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            
             const files = Array.from(e.dataTransfer.files);
             const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-            
             if (validFiles.length > 0) {
                 addFiles(validFiles);
                 updateStatus(`✓ Đã thêm ${validFiles.length} tệp qua kéo thả.`, "#198754");
@@ -159,7 +152,6 @@
         }
     });
 
-    // ====== HÀM DÙNG CHUNG ======
     function addFiles(files) {
         selectedFiles = selectedFiles.concat(files);
         document.getElementById('fileName').innerText = `📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`;
@@ -182,7 +174,6 @@
         updateStatus('Đã xóa danh sách file.', '#6c757d');
     }
 
-    // ====== XỬ LÝ AI ======
     function parsePureNumber(val) {
         if (val === null || val === undefined || val === "") return "";
         var str = String(val).trim().replace(/[^0-9.,\-]/g, '');
@@ -315,7 +306,6 @@
     // ====== CHÈN EXCEL ======
     async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
-
         try {
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -354,8 +344,6 @@
                             parts[1] = parts[1].padStart(2, '0');
                             dateStr = parts.join('/');
                         }
-                        // Thêm dấu nháy đơn để báo hiệu đây là text tĩnh
-                        dateStr = "'" + dateStr;
                     }
 
                     const rowData = [
@@ -371,13 +359,106 @@
                         ""
                     ];
 
-                    table.rows.add(insertIndex + i, [rowData]);
+                    const newRow = table.rows.add(insertIndex + i, [rowData]);
+                    
+                    if (dateStr !== "") {
+                        const dateCell = newRow.getRange().getCell(0, 5);
+                        dateCell.numberFormat = [["@"]];
+                    }
                     await context.sync(); 
                 }
             });
             updateStatus(`✓ Đã chèn ${extractedResults.length} hóa đơn vào bảng tính!`, "#198754");
         } catch (error) {
             updateStatus("Lỗi khi chèn vào Excel: " + error.message, "#dc3545");
+        }
+    }
+
+    // ====== KIỂM TRA TRÙNG LẶP (MỚI) ======
+    async function checkDuplicates() {
+        const checkStatusDiv = document.getElementById('checkStatus');
+        checkStatusDiv.innerText = "⏳ Đang quét dữ liệu tìm hóa đơn trùng...";
+        checkStatusDiv.style.color = "#0d6efd";
+
+        try {
+            await Excel.run(async (context) => {
+                const sheet = context.workbook.worksheets.getActiveWorksheet();
+                const tables = sheet.tables;
+                tables.load("items/name");
+                await context.sync();
+
+                if (tables.items.length === 0) throw new Error("Không tìm thấy Table.");
+                const table = tables.items[0];
+                const dataBodyRange = table.getDataBodyRange();
+                dataBodyRange.load("values");
+                await context.sync();
+
+                const values = dataBodyRange.values;
+                if (!values || values.length === 0) {
+                    checkStatusDiv.innerText = "Bảng chưa có dữ liệu để kiểm tra.";
+                    checkStatusDiv.style.color = "#6c757d";
+                    return;
+                }
+
+                // Xóa toàn bộ màu highlight cũ trước khi kiểm tra
+                dataBodyRange.format.fill.clear();
+
+                // Tạo mảng chứa khóa trùng lặp
+                let keyMap = {};
+                let duplicateKeys = new Set();
+
+                // Quét dữ liệu (Cột E là Số HĐ index 4, Cột F là Ngày HĐ index 5, Cột H là MST index 7)
+                for (let i = 0; i < values.length; i++) {
+                    const row = values[i];
+                    // Bỏ qua các dòng rỗng (không có số hóa đơn)
+                    if (!row[4]) continue;
+
+                    const invNo = String(row[4]).trim().toLowerCase();
+                    const invDate = String(row[5]).trim(); // Định dạng dd/mm/yyyy
+                    const taxId = String(row[7]).trim().toLowerCase();
+
+                    const key = `${invNo}|${invDate}|${taxId}`;
+
+                    if (keyMap[key] !== undefined) {
+                        // Nếu khóa đã tồn tại => Phát hiện trùng
+                        duplicateKeys.add(key);
+                    } else {
+                        keyMap[key] = i;
+                    }
+                }
+
+                if (duplicateKeys.size === 0) {
+                    checkStatusDiv.innerText = "✅ Tuyệt vời! Không tìm thấy hóa đơn nào bị trùng lặp.";
+                    checkStatusDiv.style.color = "#198754";
+                    return;
+                }
+
+                // Tiến hành tô màu các dòng bị trùng
+                const highlightColor = "#ffcccc"; // Màu đỏ nhạt
+                let dupCount = 0;
+
+                for (let i = 0; i < values.length; i++) {
+                    const row = values[i];
+                    if (!row[4]) continue;
+
+                    const invNo = String(row[4]).trim().toLowerCase();
+                    const invDate = String(row[5]).trim();
+                    const taxId = String(row[7]).trim().toLowerCase();
+                    const key = `${invNo}|${invDate}|${taxId}`;
+
+                    if (duplicateKeys.has(key)) {
+                        const rowRange = dataBodyRange.getRow(i);
+                        rowRange.format.fill.color = highlightColor;
+                        dupCount++;
+                    }
+                }
+
+                checkStatusDiv.innerText = `⚠️ Phát hiện ${duplicateKeys.size} cụm hóa đơn bị trùng lặp (tổng cộng ${dupCount} dòng đã được tô màu đỏ).`;
+                checkStatusDiv.style.color = "#dc3545";
+            });
+        } catch (error) {
+            checkStatusDiv.innerText = "Lỗi khi kiểm tra: " + error.message;
+            checkStatusDiv.style.color = "#dc3545";
         }
     }
 </script>
