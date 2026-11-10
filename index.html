@@ -5,10 +5,6 @@
     <title>Đọc Hóa Đơn AI</title>
     <!-- Office.js bắt buộc -->
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-    <!-- Thư viện Dropzone để lách WebView2 -->
-    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
-    
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
         body { background-color: #f8f9fa; color: #212529; height: 100vh; display: flex; flex-direction: column; }
@@ -21,11 +17,10 @@
         #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 10px; }
         .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-bottom: 15px; font-weight: normal; }
 
-        /* Ghi đè CSS của Dropzone để giống nút bấm cũ */
-        .dropzone { border: none !important; background: transparent !important; min-height: 0 !important; padding: 0 !important; }
-        .dz-message { margin: 0 !important; }
-        .dz-button { background-color: #0d6efd !important; color: white !important; border: none !important; padding: 10px 20px !important; border-radius: 6px !important; cursor: pointer !important; font-weight: bold !important; font-size: 14px !important; display: inline-block !important; width: auto !important; }
-        .dz-button:hover { background-color: #0b5ed7 !important; }
+        .btn-select-file {
+            background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block;
+        }
+        .btn-select-file:hover { background-color: #0b5ed7; }
 
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
@@ -39,6 +34,9 @@
         .preview-table td { color: #000; font-weight: 500; background-color: #fff; }
         .preview-table tbody tr:nth-child(even) td { background-color: #f8fafc; }
         .preview-table tbody tr:hover td { background-color: #e2e8f0; }
+        
+        /* Hiệu ứng khi kéo thả file */
+        .dragover { background-color: #d0e4ff !important; border-color: #0b5ed7 !important; }
     </style>
 </head>
 <body>
@@ -47,16 +45,12 @@
     <div class="card">
         <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
         
-        <div class="file-input-wrapper">
+        <!-- Vùng kéo thả và nút chọn file -->
+        <div class="file-input-wrapper" id="dropZone">
             <span id="fileName">Chưa có tệp nào được chọn</span>
-            <span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
+            <span class="paste-hint">💡 Hoặc kéo thả tệp từ máy tính vào khung này. Có thể bấm Ctrl + V để dán ảnh.</span>
             
-            <!-- Dropzone sẽ tự động tạo vùng kéo thả và nút bấm thay thế input file -->
-            <form action="/" class="dropzone" id="myDropzone">
-                <div class="dz-message" data-dz-message>
-                    <button type="button" class="dz-button">📂 Chọn Tệp Từ Máy Tính</button>
-                </div>
-            </form>
+            <button class="btn-select-file" onclick="openFilePicker()">📂 Chọn Tệp Từ Máy Tính</button>
         </div>
 
         <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
@@ -94,36 +88,91 @@
     let selectedFiles = [];
     let extractedResults = [];
 
-    // Cấu hình Dropzone để không upload qua AJAX mà chỉ lấy file
-    Dropzone.autoDiscover = false;
-    const myDropzone = new Dropzone("#myDropzone", {
-        url: "#",
-        autoProcessQueue: false,
-        uploadMultiple: true,
-        parallelUploads: 10,
-        maxFilesize: 10, // MB
-        acceptedFiles: "image/*,application/pdf",
-        addRemoveLinks: false,
-        dictDefaultMessage: "Kéo thả file vào đây hoặc bấm nút",
-        init: function() {
-            this.on("addedfiles", function(files) {
-                selectedFiles = selectedFiles.concat(Array.from(files));
-                updateFileStatusText(`📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`);
-                document.getElementById('processBtn').disabled = false;
-                document.getElementById('clearBtn').style.display = 'inline-block';
-                const statusDiv = document.getElementById('status');
-                statusDiv.innerText = `✓ Đã thêm ${files.length} tệp.`;
-                statusDiv.style.color = "#198754";
-            });
-        }
-    });
-
     // Office.js khởi tạo
     Office.onReady(function(info) {
         if (info.host === Office.HostType.Excel) {
             console.log("Excel add-in đã sẵn sàng");
+            setupDragAndDrop(); // Kích hoạt tính năng kéo thả
         }
     });
+
+    // ====== HÀM MỞ HỘP THOẠI POPUP CHỌN FILE (TRÁNH LỖI WEBVIEW2) ======
+    function openFilePicker() {
+        // Lấy URL gốc của trang hiện tại và thay index.html bằng picker.html
+        const currentUrl = window.location.href;
+        const pickerUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + '/picker.html';
+
+        Office.context.ui.displayDialogAsync(
+            pickerUrl,
+            { height: 30, width: 40, promptBeforeOpen: false },
+            function (asyncResult) {
+                if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+                    document.getElementById('status').innerText = "Lỗi mở cửa sổ chọn file: " + asyncResult.error.message;
+                    return;
+                }
+                
+                const dialog = asyncResult.value;
+                dialog.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
+                    try {
+                        const msg = JSON.parse(arg.message);
+                        if (msg.status === "success") {
+                            document.getElementById('status').innerText = "✓ Cửa sổ chọn file đã đóng. Đang xử lý...";
+                            document.getElementById('status').style.color = "#198754";
+                            dialog.close();
+                            
+                            // Vì bảo mật của Office Dialog, chúng ta không thể lấy trực tiếp File Object.
+                            // Giải pháp: Yêu cầu người dùng dùng tính năng Kéo Thả hoặc Dán ảnh.
+                            // Hoặc nhắc họ chọn file trên giao diện chính.
+                            alert("Tính năng chọn file qua Popup đang bị giới hạn bởi bảo mật của Office. Vui lòng KÉO THẢ file vào khung, hoặc dán ảnh (Ctrl+V).");
+                        }
+                    } catch (e) {
+                        dialog.close();
+                    }
+                });
+                
+                dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
+                    dialog.close(); // Xử lý khi người dùng bấm nút X đóng popup
+                });
+            }
+        );
+    }
+
+    // ====== TÍNH NĂNG KÉO THẢ FILE VÀO KHUNG (DRAG & DROP) ======
+    function setupDragAndDrop() {
+        const dropZone = document.getElementById('dropZone');
+
+        // Ngăn trình duyệt mở file khi kéo nhầm ra ngoài
+        window.addEventListener("dragover", function(e) { e.preventDefault(); }, false);
+        window.addEventListener("drop", function(e) { e.preventDefault(); }, false);
+
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            
+            const files = Array.from(e.dataTransfer.files);
+            const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+            
+            if (validFiles.length > 0) {
+                selectedFiles = selectedFiles.concat(validFiles);
+                updateFileStatusText(`📁 Đã nhận tổng cộng ${selectedFiles.length} tệp hóa đơn`);
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('clearBtn').style.display = 'inline-block';
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerText = `✓ Đã thêm ${validFiles.length} tệp qua kéo thả.`;
+                statusDiv.style.color = "#198754";
+            }
+        });
+    }
 
     // ====== CÁC HÀM XỬ LÝ FILE ======
     document.addEventListener('paste', function (event) {
@@ -156,7 +205,6 @@
     function clearSelectedFiles(event) {
         if (event) event.stopPropagation();
         selectedFiles = [];
-        myDropzone.removeAllFiles(true); // Xóa file trong Dropzone
         document.getElementById('fileName').innerText = 'Chưa có tệp nào được chọn';
         document.getElementById('processBtn').disabled = true;
         document.getElementById('clearBtn').style.display = 'none';
@@ -315,7 +363,6 @@
             await Excel.run(async (context) => {
                 const sheet = context.workbook.worksheets.getActiveWorksheet();
                 
-                // 1. Lấy Table trên Sheet
                 const tables = sheet.tables;
                 tables.load("items/name");
                 await context.sync();
@@ -329,7 +376,6 @@
                 dataBodyRange.load("values");
                 await context.sync();
 
-                // 2. Tìm STT lớn nhất
                 let maxStt = 0;
                 if (dataBodyRange.values && dataBodyRange.values.length > 0) {
                     dataBodyRange.values.forEach(row => {
@@ -340,40 +386,30 @@
                     });
                 }
 
-                // 3. Xác định vị trí chèn: Ngay trước dòng Total
                 table.load("rows/count");
                 await context.sync();
                 let insertIndex = table.rows.count - 1; 
                 
-                // Nếu bảng chỉ có Header và Total (count = 2), chèn vào index 1 (ngay dưới Header)
                 if (insertIndex < 1) insertIndex = 1;
 
-                // 4. Tiến hành chèn TỪNG DÒNG MỘT và ghi dữ liệu luôn
                 for (let i = 0; i < extractedResults.length; i++) {
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
 
-                    // Dữ liệu 13 cột, ép kiểu chuỗi để không lỗi định dạng số
                     const rowData = [
-                        String(stt),                          // A: STT
-                        "",                                   // B: NGÀY
-                        "",                                   // C: SỐ IL
-                        "",                                   // D: CBQL
-                        String(d.soHoaDon || ""),             // E: SỐ HÓA ĐƠN
-                        String(d.ngayXuat || ""),             // F: NGÀY HÓA ĐƠN
-                        String(d.donViBan || ""),             // G: ĐƠN VỊ BÁN
-                        String(d.maSoThue || ""),             // H: MST
-                        "",                                   // I: LOẠI HÌNH
-                        String(d.soTienTruocVAT ?? ""),       // J: TRƯỚC VAT
-                        String(d.thueVAT ?? ""),              // K: VAT
-                        String(d.tongSoTien ?? ""),           // L: SAU VAT
-                        ""                                    // M: GHI CHÚ
+                        String(stt), "", "", "",
+                        String(d.soHoaDon || ""),
+                        String(d.ngayXuat || ""),
+                        String(d.donViBan || ""),
+                        String(d.maSoThue || ""),
+                        "",
+                        String(d.soTienTruocVAT ?? ""),
+                        String(d.thueVAT ?? ""),
+                        String(d.tongSoTien ?? ""),
+                        ""
                     ];
 
-                    // Chèn dòng mới và ghi dữ liệu ngay lập tức
                     table.rows.add(insertIndex + i, [rowData]);
-                    
-                    // Bắt buộc phải sync ở mỗi vòng lặp để Excel kịp cập nhật cấu trúc bảng
                     await context.sync(); 
                 }
             });

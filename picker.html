@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Chọn Tệp Hóa Đơn</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; text-align: center; background-color: #f8f9fa; }
+        h3 { color: #333; }
+        .btn { background-color: #0d6efd; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 20px; }
+        .btn:hover { background-color: #0b5ed7; }
+    </style>
+</head>
+<body>
+    <h3>Vui lòng chọn hóa đơn (Ảnh hoặc PDF)</h3>
+    <p>Bạn có thể chọn nhiều file cùng lúc.</p>
+    
+    <!-- Thẻ input này nằm trong cửa sổ popup, nên sẽ không bị WebView2 chặn -->
+    <input type="file" id="fileInput" accept="image/*,application/pdf" multiple style="display: none;">
+    <button class="btn" onclick="document.getElementById('fileInput').click()">📂 Mở Hộp Thoại Chọn Tệp</button>
+
+    <script>
+        // Lắng nghe sự kiện Office khởi tạo
+        Office.onReady(function() {
+            document.getElementById('fileInput').addEventListener('change', function(event) {
+                const files = Array.from(event.target.files);
+                if (files.length > 0) {
+                    // Gửi thông báo về cửa sổ chính (index.html) để báo rằng đã chọn xong file
+                    Office.context.ui.messageParent(JSON.stringify({ status: "success", message: `Đã chọn ${files.length} file` }));
+                }
+            });
+        });
+    </script>
+</body>
+</html>
