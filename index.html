@@ -308,7 +308,7 @@
         document.getElementById('resultCard').style.display = 'block';
     }
 
-    // ====== CHÈN EXCEL (XỬ LÝ NGÀY THÁNG CHUẨN XÁC 100%) ======
+    // ====== CHÈN EXCEL (SỬA LỖI NGÀY THÁNG TUYỆT ĐỐI BẰNG TEXT) ======
     async function insertAllToSheet() {
         if (!extractedResults || extractedResults.length === 0) return;
 
@@ -342,39 +342,21 @@
                     const d = extractedResults[i];
                     const stt = maxStt + 1 + i;
 
-                    // Tính số Serial Date trực tiếp bằng toán học (Không dùng Date object để tránh lỗi múi giờ)
-                    let dateValue = "";
-                    if (d.ngayXuat) {
-                        const parts = d.ngayXuat.split('/');
+                    // Đảm bảo ngày tháng có dạng dd/mm/yyyy (bù số 0 nếu thiếu)
+                    let dateStr = String(d.ngayXuat || "").trim();
+                    if (dateStr) {
+                        let parts = dateStr.split('/');
                         if (parts.length === 3) {
-                            const day = parseInt(parts[0], 10);
-                            const month = parseInt(parts[1], 10);
-                            const year = parseInt(parts[2], 10);
-                            
-                            // Công thức chuyển đổi Ngày Dương lịch sang số Serial của Excel
-                            const daysInMonths = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-                            // Kiểm tra năm nhuận
-                            if ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) {
-                                daysInMonths[2] = 29;
-                            }
-                            
-                            let daysSince1900 = (year - 1900) * 365 + Math.floor((year - 1901) / 4) + day;
-                            for (let m = 1; m < month; m++) {
-                                daysSince1900 += daysInMonths[m];
-                            }
-                            
-                            // Bù trừ lỗi năm 1900 của Excel
-                            if (year > 1900 || (year === 1900 && month > 2)) {
-                                daysSince1900 += 1;
-                            }
-                            dateValue = daysSince1900 + 1; 
+                            parts[0] = parts[0].padStart(2, '0');
+                            parts[1] = parts[1].padStart(2, '0');
+                            dateStr = parts.join('/');
                         }
                     }
 
                     const rowData = [
                         String(stt), "", "", "",
                         String(d.soHoaDon || ""),
-                        dateValue, // Gán số Serial Date
+                        dateStr, // Ghi chuỗi ngày tháng
                         String(d.donViBan || ""),
                         String(d.maSoThue || ""),
                         "",
@@ -387,10 +369,10 @@
                     // 1. Chèn dòng mới
                     const newRow = table.rows.add(insertIndex + i, [rowData]);
                     
-                    // 2. Ép định dạng hiển thị của ô Ngày xuất (Cột F, index 5) thành dd/mm/yyyy
-                    if (dateValue !== "") {
+                    // 2. Ép định dạng ô Ngày tháng (Cột F, index 5) thành Text ("@") để triệt tiêu việc Excel tự chuyển đổi
+                    if (dateStr !== "") {
                         const dateCell = newRow.getRange().getCell(0, 5);
-                        dateCell.numberFormat = [["dd/mm/yyyy"]];
+                        dateCell.numberFormat = [["@"]];
                     }
 
                     await context.sync(); 
