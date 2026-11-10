@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đọc Hóa Đơn AI</title>
+    <!-- Office.js bắt buộc -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+        body { background-color: #f8f9fa; color: #212529; height: 100vh; display: flex; flex-direction: column; }
+        .container { padding: 16px; overflow-y: auto; flex: 1; }
+        .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 16px; }
+        h2 { font-size: 16px; margin-bottom: 12px; color: #1a252f; font-weight: 700; }
+        .file-input-wrapper { border: 2px dashed #0d6efd; border-radius: 6px; padding: 20px; text-align: center; background: #f0f7ff; cursor: pointer; color: #0d6efd; font-weight: 600; }
+        .file-input-wrapper:hover { background: #e1f0ff; }
+        #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; }
+        .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-top: 6px; font-weight: normal; }
+        input[type="file"] { display: none; }
+        .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
+        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .btn-clear { background-color: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; display: none; }
+        .status { margin-top: 10px; font-size: 13px; font-weight: 600; color: #dc3545; word-break: break-word; }
+        .preview-table-container { overflow-x: auto; border-radius: 6px; border: 1px solid #b0b8c1; margin-top: 12px; }
+        .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; background-color: #fff; color: #111; }
+        .preview-table th, .preview-table td { border: 1px solid #cbd5e1; padding: 10px 8px; text-align: left; vertical-align: middle; }
+        .preview-table th { background-color: #343a40; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; }
+        .preview-table td { color: #000; font-weight: 500; background-color: #fff; }
+        .preview-table tbody tr:nth-child(even) td { background-color: #f8fafc; }
+        .preview-table tbody tr:hover td { background-color: #e2e8f0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
+        <div class="file-input-wrapper" onclick="document.getElementById('fileInput').click()">
+            <span id="fileName">Nhấp vào đây để chọn một hoặc nhiều tệp (.png, .jpg, .pdf)</span>
+            <span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
+            <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
+        </div>
+        <button id="clearBtn" class="btn-clear" onclick="clearSelectedFiles(event)">🗑️ Xóa danh sách file đã chọn</button>
+        <button id="processBtn" class="btn" disabled onclick="processAllInvoices()">Đọc Tất Cả Hóa Đơn & Xuất Bảng Tính</button>
+        <div id="status" class="status"></div>
+    </div>
+
+    <div class="card" id="resultCard" style="display: none;">
+        <h2>Danh Sách Hóa Đơn Đã Trích Xuất</h2>
+        <div class="preview-table-container">
+            <table class="preview-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">STT</th>
+                        <th>Số HĐ</th>
+                        <th>Ngày HĐ</th>
+                        <th>Đơn vị bán</th>
+                        <th>Mã số thuế</th>
+                        <th>Trước VAT</th>
+                        <th>Thuế VAT</th>
+                        <th>Sau VAT</th>
+                    </tr>
+                </thead>
+                <tbody id="previewBody"></tbody>
+            </table>
+        </div>
+        <button class="btn" style="background-color: #198754;" onclick="insertAllToSheet()">Chèn Tất Cả Vào Bảng Tính</button>
+    </div>
+</div>
+
+<script>
+    // ====== CẤU HÌNH ======
+    // THAY API KEY MỚI CỦA BẠN VÀO ĐÂY (đã revoke key cũ)
+    const GEMINI_API_KEY = "AQ.Ab8RN6KbWTMIKv7frgjZJQvOtlyVc-7x3_dUM-quh5Qn6q7WQg";
+    // Tên model: kiểm tra lại trong Google AI Studio
+    const GEMINI_MODEL = "gemini-3.8-flash"; 
+
+    let selectedFiles = [];
+    let extractedResults = [];
+
+    // Office.js khởi tạo
+    Office.onReady(function(info) {
+        if (info.host === Office.HostType.Excel) {
+            console.log("Excel add-in đã sẵn sàng");
+        }
+    });
+
+    // ====== CÁC HÀM XỬ LÝ FILE (giữ nguyên từ plugin cũ) ======
+    document.addEventListener('paste', function (event) {
+        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+        let newPastedFiles = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+                const blob = items[i].getAsFile();
+                if (blob) {
+                    const fileName = `screenshot_${Date.now()}_${selectedFiles.length + newPastedFiles.length + 1}.png`;
+                    newPastedFiles.push(new File([blob], fileName, { type: blob.type }));
+                }
+            }
+        }
+        if (newPastedFiles.length > 0) {
+            selectedFiles = selectedFiles.concat(newPastedFiles);
+            updateFileStatusText(`📋 Đã nhận tổng cộng ${selectedFiles.length} ảnh/tệp hóa đơn`);
+            document.getElementById('processBtn').disabled = false;
+            document.getElementById('clearBtn').style.display = 'inline-block';
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = `✓ Đã dán thêm ${newPastedFiles.length} ảnh (Tổng: ${selectedFiles.length} tệp).`;
+            statusDiv.style.color = "#198754";
+        }
+    });
+
+    function handleFileSelect(event) {
+        const files = Array.from(event.target.files);
+        if (files.length === 0) return;
+        selectedFiles = selectedFiles.concat(files);
+        updateFileStatusText(`📁 Đã chọn tổng cộng ${selectedFiles.length} tệp hóa đơn`);
+        document.getElementById('processBtn').disabled = false;
+        document.getElementById('clearBtn').style.display = 'inline-block';
+        event.target.value = '';
+    }
+
+    function updateFileStatusText(text) {
+        document.getElementById('fileName').innerText = text;
+    }
+
+    function clearSelectedFiles(event) {
+        if (event) event.stopPropagation();
+        selectedFiles = [];
+        document.getElementById('fileName').innerText = 'Nhấp vào đây để chọn một hoặc nhiều tệp (.png, .jpg, .pdf)';
+        document.getElementById('processBtn').disabled = true;
+        document.getElementById('clearBtn').style.display = 'none';
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerText = 'Đã xóa danh sách file.';
+        statusDiv.style.color = '#6c757d';
+    }
+
+    function parsePureNumber(val) {
+        if (val === null || val === undefined || val === "") return "";
+        var str = String(val).trim().replace(/[^0-9.,\-]/g, '');
+        if (!str) return "";
+        var lastDot = str.lastIndexOf('.');
+        var lastComma = str.lastIndexOf(',');
+        if (lastDot !== -1 && lastComma !== -1) {
+            if (lastDot > lastComma) { str = str.replace(/,/g, ''); }
+            else { str = str.replace(/\./g, '').replace(',', '.'); }
+        } else if (lastComma !== -1) {
+            var parts = str.split(',');
+            if (parts.length > 2) { str = str.replace(/,/g, ''); }
+            else { if (parts[1].length === 3) { str = str.replace(/,/g, ''); } else { str = str.replace(',', '.'); } }
+        } else if (lastDot !== -1) {
+            var parts = str.split('.');
+            if (parts.length > 2) { str = str.replace(/\./g, ''); }
+            else { if (parts[1].length === 3) { str = str.replace(/\./g, ''); } }
+        }
+        var num = parseFloat(str);
+        return isNaN(num) ? str : num;
+    }
+
+    async function fetchWithRetry(url, options, maxRetries = 3, initialDelay = 1500) {
+        let delay = initialDelay;
+        const statusDiv = document.getElementById('status');
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                if (data.error) {
+                    if (data.error.code === 503 || data.error.code === 429 || (data.error.message && data.error.message.includes("demand"))) {
+                        throw new Error(data.error.message);
+                    }
+                    throw new Error("API Error: " + data.error.message);
+                }
+                return data;
+            } catch (error) {
+                console.warn(`Thử lại ${attempt}/${maxRetries}: ${error.message}`);
+                if (attempt === maxRetries) throw error;
+                statusDiv.innerText = `⏳ Máy chủ bận, đang thử lại (${attempt}/${maxRetries})...`;
+                statusDiv.style.color = "#fd7e14";
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+            }
+        }
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function processAllInvoices() {
+        const statusDiv = document.getElementById('status');
+        const processBtn = document.getElementById('processBtn');
+        processBtn.disabled = true;
+        extractedResults = [];
+        let errorMessages = [];
+
+        const promptText = `Trích xuất thông tin hóa đơn này và trả về JSON duy nhất:
+{
+  "soHoaDon": "string",
+  "ngayXuat": "string (dd/mm/yyyy)",
+  "donViBan": "string",
+  "maSoThue": "string",
+  "soTienTruocVAT": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 867300 hoặc 867300.5)",
+  "thueVAT": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 73964 hoặc 73964.5)",
+  "tongSoTien": "string (số thuần túy không có phân cách hàng ngàn, ví dụ: 941264 hoặc 941264.5)"
+}`;
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+            statusDiv.innerText = `⏳ Đang đọc file (${i + 1}/${selectedFiles.length}): ${file.name}...`;
+            statusDiv.style.color = "#0d6efd";
+            try {
+                const base64Data = await fileToBase64(file);
+                let mimeType = file.type;
+                if (!mimeType && file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+                const requestBody = {
+                    "contents": [{
+                        "parts": [
+                            { "text": promptText },
+                            { "inline_data": { "mime_type": mimeType || "image/png", "data": base64Data } }
+                        ]
+                    }]
+                };
+                const data = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    let textResponse = data.candidates[0].content.parts[0].text;
+                    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const jsonRes = JSON.parse(jsonMatch[0]);
+                        jsonRes.soTienTruocVAT = parsePureNumber(jsonRes.soTienTruocVAT);
+                        jsonRes.thueVAT = parsePureNumber(jsonRes.thueVAT);
+                        jsonRes.tongSoTien = parsePureNumber(jsonRes.tongSoTien);
+                        extractedResults.push(jsonRes);
+                    } else { throw new Error("Không tìm thấy cấu trúc JSON trong phản hồi."); }
+                } else { throw new Error("Không nhận được nội dung từ AI."); }
+            } catch (err) {
+                console.error(`Lỗi file ${file.name}:`, err);
+                errorMessages.push(`${file.name}: ${err.message}`);
+            }
+        }
+
+        if (extractedResults.length > 0) {
+            showPreviewList(extractedResults);
+            statusDiv.innerText = `✓ Hoàn tất! Đã đọc thành công ${extractedResults.length}/${selectedFiles.length} hóa đơn.`;
+            statusDiv.style.color = "#198754";
+        } else {
+            statusDiv.innerText = "Không thể đọc được hóa đơn. Lỗi: " + (errorMessages.join(" | ") || "Lỗi không xác định");
+            statusDiv.style.color = "#dc3545";
+        }
+        processBtn.disabled = false;
+    }
+
+    function showPreviewList(list) {
+        const tbody = document.getElementById('previewBody');
+        tbody.innerHTML = list.map((data, index) => `
+            <tr>
+                <td style="text-align: center; font-weight: bold;">${index + 1}</td>
+                <td>${data.soHoaDon || ''}</td>
+                <td>${data.ngayXuat || ''}</td>
+                <td>${data.donViBan || ''}</td>
+                <td>${data.maSoThue || ''}</td>
+                <td>${data.soTienTruocVAT ?? ''}</td>
+                <td>${data.thueVAT ?? ''}</td>
+                <td>${data.tongSoTien ?? ''}</td>
+            </tr>
+        `).join('');
+        document.getElementById('resultCard').style.display = 'block';
+    }
+
+    // ====== PHẦN THAY ĐỔI CHÍNH: DÙNG OFFICE.JS THAY VÌ ONLYOFFICE ======
+    async function insertAllToSheet() {
+        if (!extractedResults || extractedResults.length === 0) return;
+
+        try {
+            await Excel.run(async (context) => {
+                const sheet = context.workbook.worksheets.getActiveWorksheet();
+                
+                // Tìm dòng cuối có dữ liệu trong cột A (STT)
+                const usedRange = sheet.getUsedRange();
+                usedRange.load("rowIndex, rowCount");
+                await context.sync();
+
+                let startRow = 1; // Mặc định bắt đầu từ dòng 2 (index 1) nếu sheet trống
+                if (usedRange.rowCount > 0) {
+                    startRow = usedRange.rowIndex + usedRange.rowCount;
+                }
+
+                // Tìm STT lớn nhất trong cột A
+                let maxStt = 0;
+                if (startRow > 1) {
+                    const colARange = sheet.getRange("A2:A" + startRow);
+                    colARange.load("values");
+                    await context.sync();
+                    colARange.values.forEach(([v]) => {
+                        const n = parseInt(v, 10);
+                        if (!isNaN(n) && n > maxStt) maxStt = n;
+                    });
+                }
+
+                // Ghi từng dòng hóa đơn
+                for (let i = 0; i < extractedResults.length; i++) {
+                    const d = extractedResults[i];
+                    const rowNum = startRow + i + 1; // 1-based Excel row
+                    const stt = maxStt + 1 + i;
+
+                    // Chuẩn bị mảng giá trị cho dòng: A đến M (13 cột)
+                    // A=STT, B-D trống, E=Số HĐ, F=Ngày, G=Đơn vị bán, H=MST, I-J trống, K=Trước VAT, L=VAT, M=Sau VAT
+                    const rowValues = [[
+                        stt, "", "", "",
+                        d.soHoaDon || "",
+                        d.ngayXuat || "",
+                        d.donViBan || "",
+                        d.maSoThue || "",
+                        "", "",
+                        d.soTienTruocVAT ?? "",
+                        d.thueVAT ?? "",
+                        d.tongSoTien ?? ""
+                    ]];
+
+                    const targetRange = sheet.getRange(`A${rowNum}:M${rowNum}`);
+                    targetRange.values = rowValues;
+                    targetRange.format.borders.getItem('EdgeTop').style = 'Continuous';
+                    targetRange.format.borders.getItem('EdgeBottom').style = 'Continuous';
+                    targetRange.format.borders.getItem('EdgeLeft').style = 'Continuous';
+                    targetRange.format.borders.getItem('EdgeRight').style = 'Continuous';
+                    targetRange.format.borders.getItem('InsideVertical').style = 'Continuous';
+                    targetRange.format.borders.getItem('InsideHorizontal').style = 'Continuous';
+                }
+
+                await context.sync();
+            });
+
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = `✓ Đã chèn ${extractedResults.length} hóa đơn vào bảng tính!`;
+            statusDiv.style.color = "#198754";
+        } catch (error) {
+            console.error("Lỗi khi chèn vào Excel:", error);
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "Lỗi khi chèn vào Excel: " + error.message;
+            statusDiv.style.color = "#dc3545";
+        }
+    }
+</script>
+</body>
+</html>
