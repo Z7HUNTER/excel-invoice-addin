@@ -17,16 +17,27 @@
         .file-input-wrapper:hover { background: #e1f0ff; }
         #fileName { color: #0b5ed7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 10px; }
         .paste-hint { display: block; font-size: 11px; color: #6c757d; margin-bottom: 15px; font-weight: normal; }
-        
-        /* Nút bấm chọn file giả (để hiển thị) */
-        .btn-select-file {
-            background-color: #0d6efd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; position: relative; overflow: hidden;
-        }
-        .btn-select-file:hover { background-color: #0b5ed7; }
 
-        /* Tuyệt chiêu: Input file trong suốt phủ lên nút bấm */
-        #fileInput {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+        /* ĐÂY LÀ PHẦN THAY ĐỔI CỐT LÕI: BIẾN THẺ INPUT THÀNH NÚT BẤM */
+        input[type="file"]::file-selector-button {
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            margin-right: 10px;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #0b5ed7;
+        }
+        input[type="file"] {
+            font-size: 14px;
+            color: #6c757d;
+            cursor: pointer;
         }
 
         .btn { background-color: #0d6efd; color: #fff; border: none; padding: 11px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; margin-top: 10px; }
@@ -49,14 +60,12 @@
     <div class="card">
         <h2>Tải lên Hóa đơn (Chọn nhiều Ảnh hoặc PDF)</h2>
         
-        <!-- KHU VỰC CHỌN FILE ĐÃ ĐƯỢC SỬA LẠI BẰNG KỸ THUẬT CLICK-THROUGH -->
         <div class="file-input-wrapper">
             <span id="fileName">Chưa có tệp nào được chọn</span>
             <span class="paste-hint">💡 Hoặc bấm <b>Ctrl + V</b> nhiều lần để dán liên tiếp nhiều ảnh chụp màn hình</span>
             
-            <!-- Nút bấm giả chứa input thật bên trong -->
-            <div class="btn-select-file">
-                📂 Chọn Tệp Từ Máy Tính
+            <!-- HIỂN THỊ TRỰC TIẾP THẺ INPUT, KHÔNG ẨN -->
+            <div style="margin-top: 10px;">
                 <input type="file" id="fileInput" accept="image/*,application/pdf" multiple onchange="handleFileSelect(event)">
             </div>
         </div>
